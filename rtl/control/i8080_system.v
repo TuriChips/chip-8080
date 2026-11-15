@@ -11,9 +11,14 @@
 //   MEMR (status D7)  RAM byte at `a`
 // Status is latched at SYNC (T1) and used from T2 on. OUT cycles don't write RAM (status D4).
 //
-// NOT here yet: the CP/M BDOS hooks (bdos_char / bdos_strobe, and the end-of-run on a fetch from
-// 0000h). They need C, E and DE from the CPU, which the pin-level CPU doesn't expose; filed with
-// Ada (chip-8080#28). The two outputs are tied to 0 until then.
+// CP/M BDOS stub (spec 9), as 8080 code (Beru's suggestion on #31): reads of 0005h..001Ch return the
+// routine below instead of RAM, so `CALL 5` with C = 2 prints E and C = 9 prints the '$'-string at DE,
+// through OUT port 0 (bdos_char / bdos_strobe). It clobbers A, flags and DE, as the real BDOS may.
+//   0005 MOV A,C; CPI 2; JZ 0011; CPI 9; JZ 0015; RET
+//   0011 MOV A,E; OUT 0; RET
+//   0015 LDAX D; CPI '$'; RZ; OUT 0; INX D; JMP 0015
+// run_done goes high (and stays) at the first instruction fetch from 0000h after a fetch from 0100h or
+// above, which is how an exerciser ends (spec 9). Nothing in the CPU is touched.
 module i8080_system #(
     parameter INIT_FILE = ""
 ) (
@@ -40,7 +45,8 @@ module i8080_system #(
     output wire        out_strobe,
     output wire        bus_conflict,
     output wire [7:0]  bdos_char,
-    output wire        bdos_strobe
+    output wire        bdos_strobe,
+    output reg         run_done
 );
     wire [7:0] sys_d;
     wire [7:0] mem_rdata;
@@ -69,10 +75,28 @@ module i8080_system #(
         .wr(~wr_n & ~st_out), .wdata(d_out), .rdata(mem_rdata)
     );
 
+    // BDOS stub bytes
+    wire stub_hit = (a >= 16'h0005) && (a <= 16'h001E);
+    reg [7:0] stub_byte;
+    always @(*) begin
+        case (a[4:0])
+            5'h05: stub_byte = 8'h79; 5'h06: stub_byte = 8'hFE; 5'h07: stub_byte = 8'h02;
+            5'h08: stub_byte = 8'hCA; 5'h09: stub_byte = 8'h11; 5'h0A: stub_byte = 8'h00;
+            5'h0B: stub_byte = 8'hFE; 5'h0C: stub_byte = 8'h09; 5'h0D: stub_byte = 8'hCA;
+            5'h0E: stub_byte = 8'h15; 5'h0F: stub_byte = 8'h00; 5'h10: stub_byte = 8'hC9;
+            5'h11: stub_byte = 8'h7B; 5'h12: stub_byte = 8'hD3; 5'h13: stub_byte = 8'h00;
+            5'h14: stub_byte = 8'hC9; 5'h15: stub_byte = 8'h1A; 5'h16: stub_byte = 8'hFE;
+            5'h17: stub_byte = 8'h24; 5'h18: stub_byte = 8'hC8; 5'h19: stub_byte = 8'hD3;
+            5'h1A: stub_byte = 8'h00; 5'h1B: stub_byte = 8'h13; 5'h1C: stub_byte = 8'hC3;
+            5'h1D: stub_byte = 8'h15; default: stub_byte = 8'h00;
+        endcase
+    end
+    wire [7:0] mem_or_stub = stub_hit ? stub_byte : mem_rdata;
+
     assign sys_d = !dbin ? 8'h00 :
                    st_inta ? {2'b11, int_vector, 3'b111} :
                    st_inp  ? in_port_data :
-                   st_memr ? mem_rdata : 8'h00;
+                   st_memr ? mem_or_stub : 8'h00;
     assign bus = d_oe ? d_out : sys_d;
     assign bus_conflict = d_oe & dbin;
 
@@ -91,6 +115,24 @@ module i8080_system #(
     assign out_port   = out_r;
     assign out_strobe = out_strobe_r;
 
-    assign bdos_char   = 8'h00;
-    assign bdos_strobe = 1'b0;
+    // BDOS output = OUT port 0
+    reg [7:0] out_pn;
+    always @(posedge clk) begin
+        if (reset) out_pn <= 8'h00;
+        else if (!wr_n && st_out) out_pn <= a[7:0];
+    end
+    assign bdos_char   = out_r;
+    assign bdos_strobe = out_strobe_r && (out_pn == 8'h00);
+
+    // run_done: a fetch (M1, not INTA) from 0000h after a fetch from 0100h or above
+    reg sync_d, started;
+    wire fetch_t2 = sync_d && status_r[5] && !st_inta;
+    always @(posedge clk) begin
+        if (reset) begin sync_d <= 1'b0; started <= 1'b0; run_done <= 1'b0; end
+        else begin
+            sync_d <= sync;
+            if (fetch_t2 && a >= 16'h0100) started <= 1'b1;
+            if (fetch_t2 && a == 16'h0000 && started) run_done <= 1'b1;
+        end
+    end
 endmodule
