@@ -28,9 +28,7 @@ coverage logs.
   model selftest and by Titus's directed tests.
 
 ## Gaps
-1. **Instructions per program:** ≈ 930 on average at 6,000 states, just under the spec's 1,000. Next:
-   rerun at 7,000 states.
-2. **Gate-level variant** (§8): waits for Leo's synthesized netlist (#22).
+1. **Gate-level variant** (§8): waits for Leo's synthesized netlist (#22).
 
-Closed: mid-run reset (`run_resets.py`), positive `bus_conflict` (`c8/conflict_check.py`). Closed by the full-scale run: per-program depth (now many short programs), the three missing
+Closed: the C8 scale target, **10,000 programs × 1,101 instructions on average, 0 mismatches** (`logs/c8-full7000-20261115T201606Z/SUMMARY.md`); mid-run reset (`run_resets.py`), positive `bus_conflict` (`c8/conflict_check.py`). Closed by the full-scale run: per-program depth (now many short programs), the three missing
 condition-code combinations, and HOLD during an INTA taken from halt.
