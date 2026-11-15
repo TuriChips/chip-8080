@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """C8 (spec §8): random programs, RTL (i8080_system) vs ref/pins8080.py, every pin §4 compares, every
-state. Owner: Beru. READY and INT random per the §7 stimulus rule (testbench-driven, model replays the log); HOLD not
-yet; IN reads in_port_data = 5A.
+state. Owner: Beru. READY, INT and HOLD random per the §7 stimulus rule (testbench-driven, model replays the log);
+IN reads in_port_data = 5A.
 
 The model mirrors i8080_system: 64 KiB RAM, the BDOS stub bytes at 0005h-001Eh (reads only, as the
 fixture does), IN returns 5A. Each program: 0000 JMP 0100; at 0100 the §5 preamble (LXI SP, LXI B/D/H,
@@ -93,8 +93,9 @@ def model_states(mem, nst, inputs=None, vec=7):
         ram[a] = v
     c = R.CPU(read=rd, write=wr, inp=lambda port: IN_DATA)
     if inputs:
-        get = lambda n, k: inputs[n][k] if n < len(inputs) else (1, 0)[k]
-        pm = P.PinModel(c, ready=lambda n: get(n, 0), int_req=lambda n: get(n, 1), int_vector=lambda n: vec)
+        get = lambda n, k: inputs[n][k] if 0 <= n < len(inputs) else (1, 0, 0)[k]
+        pm = P.PinModel(c, ready=lambda n: get(n, 0), int_req=lambda n: get(n, 1), hold=lambda n: get(n, 2),
+                        int_vector=lambda n: vec)
     else:
         pm = P.PinModel(c)
     g = pm.states()
@@ -106,7 +107,7 @@ def recorded_inputs(pdir):
     lead = 0
     while lead < len(got) and got[lead][0] != "1":
         lead += 1
-    return [(int(g[11]), int(g[12])) for g in got[lead:]]
+    return [(int(g[11]), int(g[12]), int(g[13])) for g in got[lead:]]
 
 
 def fmt(p):
@@ -176,13 +177,14 @@ def main():
         err = compare(d, model_states(mem, a.nst, recorded_inputs(d) if a.stim else None, 1 + a.seed % 7))
         if err:
             bad += 1
-            if bad <= 8:
+            if bad <= 20:
                 print(f"MISMATCH prog{p} (seed {a.seed + p}): {err}")
-    tw = ints = 0
+    tw = ints = holds = 0
     for p in range(a.nprog):
         for l in open(f"{a.out}/prog{p}/pins.txt"):
-            f = l.split(); tw += f[7] == "1" and f[8] == "0"; ints += f[0] == "1" and f[4] in ("23", "2b")
-    print(f"coverage: {tw} wait states (TW), {ints} interrupt acknowledges (INTA) across all programs")
+            f = l.split(); tw += f[7] == "1" and f[1] == "1"; ints += f[0] == "1" and f[4] in ("23", "2b")
+            holds += f[8] == "1"
+    print(f"coverage: {tw} wait states (TW), {ints} interrupt acknowledges (INTA), {holds} states with HLDA = 1")
     print(f"c8: seed={a.seed} stim={a.stim} programs={a.nprog} states={a.nst} mismatching_programs={bad}")
     print("PASS" if bad == 0 else "FAIL")
     return 1 if bad else 0

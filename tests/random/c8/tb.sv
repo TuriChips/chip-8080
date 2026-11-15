@@ -1,8 +1,8 @@
 // C8 testbench (Beru): runs NPROG programs on i8080_system and dumps every pin §4 compares, every
 // state, for tests/random/c8/run.py to compare with ref/pins8080.py.
 // Files in +dir=<d>: prog<p>/mem.hex (64 KiB $readmemh image). Output prog<p>/pins.txt, one line per
-// state after reset: sync a_oe a d_oe d_out dbin wr_n wait_o hlda inte bus_conflict ready int_req
-// (binary/hex, X shows). With +stim=1 READY and INT are randomised per the §7 stimulus rule and logged;
+// state after reset: sync a_oe a d_oe d_out dbin wr_n wait_o hlda inte bus_conflict ready int_req hold
+// (binary/hex, X shows). With +stim=1 READY, INT and HOLD are randomised per the §7 stimulus rule and logged;
 // the model replays the logged values.
 module tb;
   reg clk = 0, reset = 1, ready = 1, hold = 0, int_req = 0;
@@ -26,7 +26,7 @@ module tb;
     for (p = 0; p < nprog; p = p + 1) begin
       pdir = $sformatf("%s/prog%0d", dir, p);
       $readmemh({pdir, "/mem.hex"}, dut.mem.mem);
-      reset = 1; ready = 1; int_req = 0; repeat (4) begin #5 clk = 1; #5 clk = 0; end
+      reset = 1; ready = 1; int_req = 0; hold = 0; repeat (4) begin #5 clk = 1; #5 clk = 0; end
       reset = 0;
       fd = $fopen({pdir, "/pins.txt"}, "w");
       for (i = 0; i < nst; i = i + 1) begin
@@ -38,10 +38,16 @@ module tb;
           ready = ($urandom % 100) >= 10;                   // 10%: wait states in this cycle
           if (!int_req) int_req = ($urandom % 100) < 3;     // INT rises in 3% of cycles
           else int_req = ($urandom % 100) >= 30;            // ... and falls in 30%
-        end else if (stim && wait_o === 1'b1) begin
+          if (!hold) hold = ($urandom % 100) < 4;           // HOLD requested in 4% of cycles
+        end else if (stim && wait_o === 1'b1 && a_oe === 1'b1) begin
           ready = ($urandom % 100) >= 50;                   // each TW: 50% another wait
         end
-        #1 $fdisplay(fd, "%s %b %b", pins_line, ready, int_req);
+        // §7 (#39): HOLD may also change in any state while hlda = 1 or in TWH (wait_o with buses off)
+        if (stim && (hlda === 1'b1 || (wait_o === 1'b1 && a_oe === 1'b0))) begin
+          if (hold) hold = ($urandom % 100) >= 30;          // held: released with 30% per state
+          else if (!hlda) hold = ($urandom % 100) < 10;     // halted: a hold starts with 10%
+        end
+        #1 $fdisplay(fd, "%s %b %b %b", pins_line, ready, int_req, hold);
         #1 clk = 1; #5 clk = 0;
       end
       $fclose(fd);
