@@ -1,0 +1,1 @@
+Everything on origin/main (75a24d3), RTL as merged (control, timing, top, system, alu, regs, mem; no local merges): asm/model/mach selftests; cross-check vs Beru's reference models 43 programs 0 differences; C1/C5 41 generated programs; C2/C3/C6 pin programs 10 (seeds 1-6 and 4 reset cases); C4 206 + 15 runs; C6 reset_mid 16 runs; C7 5 programs + 3 mutants caught. All PASS.

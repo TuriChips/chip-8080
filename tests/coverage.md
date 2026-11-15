@@ -1,6 +1,6 @@
 # Coverage: spec behaviour -> test (Intel 8080)
 
-Spec: docs/spec.md (v1). Status per row: **done** (test written and passing, log cited), **partial**, **todo**. Nothing is "passing" until a log in `logs/` says so. The RTL is not on main yet; the rows marked done ran on a local merge of PRs #31 and #32 (logs/rtl-run1/README.txt gives the heads).
+Spec: docs/spec.md (v1). Status per row: **done** (test written and passing, log cited), **partial**, **todo**. Nothing is "passing" until a log in `logs/` says so. The RTL is not on main yet; the rows marked done ran on local merges of the RTL PRs (the README.txt of each logs/rtl-run* directory gives the heads); **logs/rtl-run9 is the full run on main's merged RTL**: everything below PASSes there.
 
 ## §6.1 opcode rows (C1, C5 for DAA)
 
