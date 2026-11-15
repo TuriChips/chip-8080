@@ -274,7 +274,7 @@ Known quirks to pin down exactly (each needs a source):
 **What "covered" means, from day one** (Beru's 4004 lesson):
 - `tests/coverage.md` (Titus) maps **every row of §6.1 and every C-row above** to a named test and the log it passed in. The release needs every row done, none partial.
 - `tests/random/coverage.md` (Beru) lists what C8 exercised, with counts (every opcode, every §4 cycle type, every condition code taken and not taken, wait/hold/interrupt at every legal state) and an empty Gaps section, with the excluded bytes (§6, undocumented) and their reason listed.
-- No-X/Z and no-bus-conflict checks run on every test, with a deliberate mutant that proves they can fail.
+- No-X/Z and no-bus-conflict checks run on every test, with a deliberate mutant that proves they can fail, **and a test where two drivers are on at once, checking that `bus_conflict` rises** (the positive case). A check that has never seen a 1 isn't proven (Beru, chip-8080#5, from chip-4004#38).
 
 ## 9. Acceptance tests (software not written by this team)
 Licences checked 2026-11-15 (chip-8080#1). Same rule as the 4004's Busicom test: third-party programs are **fetched at test time and never committed** (rule 9), even when their licence would allow it, and the release credits their authors.
