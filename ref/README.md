@@ -16,6 +16,17 @@ INTA and leaving HLT by interrupt; §6.2 cycle lists for CALL, DAD and XTHL.
 Not yet: the pin-level model (waits for §4 v1), random tests (`tests/random/`), the acceptance-4
 emulator choice.
 
+## Pin level: `pins8080.py` (spec v1 §4, §5)
+`PinModel(cpu).states()` yields every T state's pins (`sync a_oe a d_oe d_out dbin wr_n wait_o
+hlda inte`, with None where §4 says "not compared"), built from the instruction model's §6.2 cycle
+list: every cycle type with its status byte, T4/T5 with the data bus not compared, DAD's two bus-idle
+cycles (§6.2 Decision), XTHL's 5-state last stack write, the INTE pin changing at T4 of EI/DI and
+reset at T1 of INTA, HLT → halt acknowledge → TWH, leaving halt by interrupt (status 2B), and the §5
+reset pins. `python3 ref/pins8080.py selftest` checks, for **every documented opcode** (conditionals
+both ways), that the states generated from §6.2 add up to p.4-15's count, plus the pins state by state
+for NOP, MVI M, PUSH, POP, OUT, IN, DAD, EI, DI, HLT and an interrupt out of halt.
+Not yet: READY wait states (TW), HOLD, and INT arriving mid-instruction with the stimulus rule (§7).
+
 ## Acceptance test 4 (spec §9 numbering): independent emulator
 Renamed from "acceptance test 3" after spec v1 (#5); log folders were renamed to `logs/acc4-*`, and
 the files inside keep their original names and contents (they print `acc3:`), since they are evidence. (feasibility checked 2026-11-15)
