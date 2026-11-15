@@ -178,8 +178,8 @@ Fields: `DDD`/`SSS` = register code B 000, C 001, D 010, E 011, H 100, L 101, M 
 | 00 100 111 | DAA | decimal adjust (§6 quirk) | Z S P CY AC | 4 |
 | 00 100 010 b2 b3 | SHLD | (b3:b2) = L, (b3:b2 + 1) = H | – | 16 |
 | 00 101 010 b2 b3 | LHLD | L = (b3:b2), H = (b3:b2 + 1) | – | 16 |
-| 11 111 011 | EI | INTE = 1 after the next instruction (ALP p.3-24) | – | 4 |
-| 11 110 011 | DI | INTE = 0 | – | 4 |
+| 11 111 011 | EI | INTE flip-flop (and the `inte` pin) set at T4 of EI's M1 (state table p.2-18: "SET INTE F/F"); an interrupt can first be **accepted** at the end of the instruction after EI (ALP p.3-24) | – | 4 |
+| 11 110 011 | DI | INTE flip-flop (and the `inte` pin) cleared at T4 of DI's M1 (p.2-18: "RESET INTE F/F"); takes effect immediately, so an INT can't be accepted at the end of DI itself | – | 4 |
 | 00 000 000 | NOP | none | – | 4 |
 
 Checks of this table against p.4-15 still to do before sign-off: one more read of every row against the page image by a second agent (Beru, as the model writer). The machine-cycle breakdown per opcode (which cycles from §4 each instruction runs) goes in §6.2 from the manual's instruction-cycle tables (pp.2-16 to 2-20).
@@ -237,7 +237,9 @@ Notation: **F4** / **F5** = instruction fetch (§4 type 1) of 4 or 5 states (T5 
 
 Flag rules every opcode table row follows (to become per-opcode lines in the §6 tables):
 - P = 1 when the result has an even number of 1 bits. Z = result is 0. S = result bit 7.
-- INR/DCR: Z, S, P, AC from the result; **CY unchanged**.
+- INR/DCR: Z, S, P from the result; **CY unchanged** (ALP p.3-21: "DCR affects all the condition flags except the carry flag").
+  - INR: AC = carry out of bit 3 of `r + 1` (AC = 1 exactly when the low nibble was F).
+  - DCR: *Decision* (neither manual gives the rule, chip-8080#7): DCR is computed as `r + FF`, the same two's-complement form as SUB (`r + ~1 + 1`). So **AC = carry out of bit 3 of `r[3:0] + F`**, i.e. AC = 1 exactly when the low nibble of r was **not 0**. This is consistent with the SUB rule above (AC from the addition, not complemented).
 - DAD: **only CY** changes (carry out of bit 15).
 - CMP/CPI: flags exactly as SUB/SUI with the same operands; A unchanged. CY = 1 means borrow (A < operand, unsigned).
 - SUB/SUI/CMP/CPI (confirmed §10, ALP p.3-64): computed as the two's-complement addition `t = A + ~op + 1` (9 bits). **CY = NOT t[8]** (so CY = 1 means borrow), **AC = carry out of bit 3 of that addition, not complemented** (`AC = (A[3:0] + ~op[3:0] + 1) > 15`). The manual's example: SUB A with A = 3E gives CY = 0, S = 0, Z = 1, P = 1, AC = 1. SBB/SBI (ALP p.3-57): `t = A + ~op + (NOT CY)` (9 bits), CY = NOT t[8], AC = carry out of bit 3 of `A[3:0] + ~op[3:0] + (NOT CY)`. The manual's example: A = 4, B = 2, CY = 1 → A = 1, CY 0, S 0, Z 0, P 0, AC 1, which matches. *Decision:* the manual describes it as "add CY to the operand, then subtract", which wraps for op = FF with CY = 1. We specify the 9-bit form above, so the result is always the true `A − op − CY` mod 256, with CY = borrow.
