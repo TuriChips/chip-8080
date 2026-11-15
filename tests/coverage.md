@@ -9,7 +9,7 @@ Spec: docs/spec.md (v1). Status per row: **done** (test written and passing, log
 | 01 DDD SSS (D, S ≠ 110) | MOV r1,r2 | tests/c1 `xfer_s1..3 (random)` | done (PASS, logs/rtl-run1) |
 | 01 110 SSS (S ≠ 110) | MOV M,r | tests/c1 `xfer_s1..3 (random)` | done (PASS, logs/rtl-run1) |
 | 01 DDD 110 (D ≠ 110) | MOV r,M | tests/c1 `xfer_s1..3 (random)` | done (PASS, logs/rtl-run1) |
-| 01 110 110 | HLT | | todo |
+| 01 110 110 | HLT | tests/c4 `int_halt_k*` (halt entered, left through INTA, return address after HLT); its TWH pins: not yet | done functionally (PASS, logs/rtl-run3); pins partial |
 | 00 DDD 110 b2 | MVI r / MVI M | tests/c1 `xfer_s1..3 (random)` | done (PASS, logs/rtl-run1) |
 | 00 DDD 100 | INR r / INR M | tests/c1 `inr_b, inr_m` | done (PASS, logs/rtl-run1) |
 | 00 DDD 101 | DCR r / DCR M | tests/c1 `dcr_b, dcr_m` | done (PASS, logs/rtl-run1) |
@@ -62,8 +62,8 @@ Spec: docs/spec.md (v1). Status per row: **done** (test written and passing, log
 | 00 100 111 | DAA | tests/c1 `daa` | done (PASS, logs/rtl-run1) |
 | 00 100 010 b2 b3 | SHLD | tests/c1 `xfer_s1..3 (random)` | done (PASS, logs/rtl-run1) |
 | 00 101 010 b2 b3 | LHLD | tests/c1 `xfer_s1..3 (random)` | done (PASS, logs/rtl-run1) |
-| 11 111 011 | EI | | todo |
-| 11 110 011 | DI | | todo |
+| 11 111 011 | EI | tests/c4 `int_inr_k*` (INT is accepted only after the instruction following EI), `int_halt_k*` | done (PASS, logs/rtl-run3) |
+| 11 110 011 | DI | tests/c4 `int_di_k*` (INT ignored after EI; DI) | done (PASS, logs/rtl-run3) |
 | 00 000 000 | NOP | tests/c1 `pins_s1..3 (every pin of NOP's fetch)` | done (PASS, logs/rtl-run2) |
 
 ## §8 behaviours
@@ -73,7 +73,7 @@ Spec: docs/spec.md (v1). Status per row: **done** (test written and passing, log
 | C1 | Every opcode: registers, memory and all five flags exactly per §6 | (the rows above) | partial: all rows done except EI, DI, HLT |
 | C2 | Pin timing per §4 for every machine-cycle type, incl. the status byte at SYNC | `tests/c2/gen_pins80.py` (PASS on the RTL, logs/rtl-run2: 3 seeded programs, 12,626 / 12,868 / 14,678 states, seed 3 with 1-2 READY wait states in a quarter of the cycles: fetch with 4 and 5 states, memory/stack read and write incl. XTHL's 5-state write, input, output, DAD's idle cycles, taken and not-taken Jcc/Ccc/Rcc) + `tb/tb_pins80.sv`; not yet run (no RTL). HOLD, halt, interrupt-acknowledge cycles (types 8-10): C3/C4 | partial |
 | C3 | READY / wait states, HOLD / HLDA at every legal point | READY wait states at every cycle type: `gen_pins80.py` seed 3 (agrees with Beru's pin model, 0 differences). HOLD/HLDA: not yet | partial |
-| C4 | Interrupts: EI after the next instruction, RST via INTA, INT while halted | | todo |
+| C4 | Interrupts: EI after the next instruction, RST via INTA, INT while halted | `tests/c4/gen_int.py` + `run.sh`: 206 runs with INT raised at 132 different states of an INR/NOP loop (EI's delay, every state of several instruction types), INT ignored without EI and after DI, INT during halt (40 states); the handler writes B and the pushed return address. Not yet: the pins of the INTA cycle (status 23/2B, PC not incremented, INTE falling), INTE pin | partial (PASS, logs/rtl-run3) |
 | C5 | DAA and AC in every case | tests/c1 `daa`: all 256 A × CY × AC (1024 cases, flags included); the DAA ANA/ANI/INR/DCR AC cases are in the alu_ and inr/dcr programs | done (PASS, logs/rtl-run2; model agrees with Beru's ref, #26/#27) |
 | C6 | Reset | `tests/c6/reset_mid` via `tests/c6/run.sh` (reset lands on 16 consecutive clocks mid-run, incl. mid-instruction; reset pins of spec §5; INTE cleared; first state after reset is T1 of a fetch from 0000; program restarts). Not yet: reset during HOLD / halt / a wait state | partial (PASS, logs/rtl-run2; reset during HOLD / halt / a wait state not yet) |
 | C7 | No X/Z on any output; no bus conflict, with a mutant and the positive `bus_conflict` case (two drivers on) | | todo |
