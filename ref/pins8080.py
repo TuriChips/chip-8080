@@ -11,7 +11,8 @@ Cycle shapes come from the instruction model's §6.2 cycle list:
   OUT     output       T1-T3, status 10                 I3  DAD bus-idle, 3 states (§6.2 Decision)
   INTA    interrupt acknowledge (RST n), T1-T5, status 23 (2B while halted)
   HLTA    halt acknowledge T1, T2, then TWH until left, status 8A
-READY wait states (TW) via a ready(n) callback; HOLD not yet (no hold states). Interrupts are
+READY wait states (TW) and HOLD/HLDA via ready(n), hold(n) callbacks (hold rules per §4 as
+refined by chip-8080#25). Interrupts are
 honoured at instruction boundaries and from the halt state.
 
 Usage: pins8080.py selftest
@@ -57,14 +58,17 @@ def cycle_pins(kind, addr, data, inte, waits=0):
 
 
 TWH = lambda inte: Pins("TWH", 0, 0, None, 0, None, 0, 1, 1, 0, inte)
+HOLD = lambda inte: Pins("HOLD", 0, 0, None, 0, None, 0, 1, 0, 1, inte)          # §4 Hold row
+HOLD_ENTRY = lambda addr, inte: Pins("HOLDE", 0, 1, addr, 0, None, 0, 1, 0, 1, inte)  # #25: write, no T4/T5
 
 
 class PinModel:
-    def __init__(self, cpu, ready=None):
-        """ready(n) -> 0/1: READY during absolute state n (default always 1). Per the §7 stimulus
-        rule a test changes it only on the edge starting a T1 or TW."""
+    def __init__(self, cpu, ready=None, hold=None):
+        """ready(n), hold(n) -> 0/1: READY / HOLD during absolute state n (defaults 1 / 0). Per the
+        §7 stimulus rule a test changes them only on the edge starting a T1 or TW."""
         self.cpu = cpu
         self.ready = ready or (lambda n: 1)
+        self.hold = hold or (lambda n: 0)
         self.n = 0                                    # absolute state counter
 
     def instruction_states(self):
@@ -93,7 +97,23 @@ class PinModel:
                 pins = [p._replace(inte=inte_after) if k >= 3 + waits else p for k, p in enumerate(pins)]
             else:
                 pins = cycle_pins(kind, addr, data, inte_after, waits)
+            # HOLD (§4 with chip-8080#25): recognised in T2, or in the TW where READY is sampled high;
+            # not in DAD's bus-idle cycles or the halt acknowledge
+            held = False
+            if kind not in ("I3", "HLTA") and self.hold(self.n + len(out) + 1 + waits):
+                held = True
+                t3 = 2 + waits
+                if kind in WRITES and len(pins) == t3 + 1:
+                    pins.append(HOLD_ENTRY(addr, pins[-1].inte))     # state after T3: hlda rises
+                elif kind in WRITES:                                 # SW5: hlda rises in T4,
+                    pins = pins[:t3 + 1] + [p._replace(hlda=1) for p in pins[t3 + 1:]]   # T4/T5 rows
+                else:                                                # read: hlda rises in T3 (T3 row);
+                    pins = pins[:t3] + [pins[t3]._replace(hlda=1)] + \
+                        [HOLD(p.inte) for p in pins[t3 + 1:]]         # T4/T5 internal, buses floated
             out += pins
+            if held:
+                while self.hold(self.n + len(out)):                  # held until HOLD is seen low
+                    out.append(HOLD(out[-1].inte))
         if cycles and cycles[-1][0] == "HLTA":
             out.append(TWH(inte_after))                   # HLT's 7th state is the first TWH
         self.n += len(out)
@@ -104,8 +124,9 @@ class PinModel:
         c = self.cpu
         while True:
             if c.halted and not (c.int_req is not None and c.inte):
+                pins = HOLD(c.inte) if self.hold(self.n) else TWH(c.inte)   # HOLD from halt, back to halt
                 self.n += 1
-                yield TWH(c.inte)
+                yield pins
                 continue
             _, pins = self.instruction_states()
             yield from pins
@@ -206,6 +227,42 @@ def selftest():
     c = R.CPU(bytes([0x09]))
     pm = PinModel(c, ready=lambda n: 0 if n >= 4 else 1)
     check("READY ignored in I3", [x.state for x in pm.instruction_states()[1]][4:], ["T1", "T2", "T3"] * 2)
+
+    # HOLD in a read (fetch) cycle: high from state 0 until state 6 -> recognised in T2, hlda in T3
+    # (T3 row kept), T4 floated (Hold row), held through state 5, next cycle's T1 at state 6
+    c = R.CPU(bytes([0x00, 0x00]))
+    pm = PinModel(c, hold=lambda n: 1 if n < 6 else 0)
+    n, p = pm.instruction_states()
+    check("HOLD read names", [x.state for x in p], ["T1", "T2", "T3", "HOLD", "HOLD", "HOLD"])
+    check("HOLD read T3", p[2], Pins("T3", 0, 1, 0x0000, 0, None, 1, 1, 0, 1, 0))
+    check("HOLD row", p[3], Pins("HOLD", 0, 0, None, 0, None, 0, 1, 0, 1, 0))
+    nxt = pm.instruction_states()[1][0]
+    check("resume T1 hlda 0", (nxt.state, nxt.hlda, nxt.a), ("T1", 0, 0x0001))
+    # HOLD in a write cycle (MVI M's W): recognised at its T2 (state 8): T3 normal, then hold-entry
+    # (a held, d_oe 0, hlda 1), then Hold rows
+    c = R.CPU(bytes([0x36, 0x5A])); c.set_rp(2, 0x1234)
+    pm = PinModel(c, hold=lambda n: 1 if 8 <= n < 13 else 0)
+    n, p = pm.instruction_states()
+    check("HOLD write names", [x.state for x in p][7:], ["T1", "T2", "T3", "HOLDE", "HOLD", "HOLD"])
+    check("HOLD write T3", (p[9].wr_n, p[9].hlda), (0, 0))
+    check("hold-entry row", p[10], Pins("HOLDE", 0, 1, 0x1234, 0, None, 0, 1, 0, 1, 0))
+    # HOLD is not recognised in DAD's idle cycles; picked up at the next bus cycle's T2
+    c = R.CPU(bytes([0x09, 0x00]))
+    pm = PinModel(c, hold=lambda n: 1 if 4 <= n < 12 else 0)
+    n, p = pm.instruction_states()
+    check("HOLD ignored in I3", [x.hlda for x in p], [0] * 10)
+    nxt = pm.instruction_states()[1]
+    check("HOLD at next bus T2", [x.state for x in nxt][:4], ["T1", "T2", "T3", "HOLD"])
+    # READY low + HOLD: recognised in the TW where READY is sampled high
+    c = R.CPU(bytes([0x00]))
+    pm = PinModel(c, ready=lambda n: 0 if n in (1, 2) else 1, hold=lambda n: 1 if n < 7 else 0)
+    n, p = pm.instruction_states()
+    check("HOLD after waits", [x.state for x in p], ["T1", "T2", "TW", "TW", "T3", "HOLD", "HOLD"])
+    check("HOLD after waits: hlda from T3", [x.hlda for x in p], [0, 0, 0, 0, 1, 1, 1])
+    # HOLD from halt and back
+    c = R.CPU(bytes([0x76])); g = PinModel(c, hold=lambda n: 1 if 9 <= n < 12 else 0).states()
+    p = [next(g) for _ in range(14)]
+    check("halt->hold->halt", [x.state for x in p[7:]], ["TWH", "TWH", "HOLD", "HOLD", "HOLD", "TWH", "TWH"])
 
     # reset pins (§5)
     check("reset pins", RESET_PINS, Pins("RESET", 0, 0, None, 0, None, 0, 1, 0, 0, 0))
