@@ -18,8 +18,9 @@ import pins8080 as P  # noqa: E402
 STUB = [0x79, 0xFE, 0x02, 0xCA, 0x11, 0x00, 0xFE, 0x09, 0xCA, 0x15, 0x00, 0xC9, 0x7B, 0xD3, 0x00, 0xC9,
         0x1A, 0xFE, 0x24, 0xC8, 0xD3, 0x00, 0x13, 0xC3, 0x15, 0x00]          # 0005h-001Eh (#31)
 IN_DATA = 0x5A
-# HLT (halts the rest of the run) and RST 0 (restarts the program) are left out of the generator;
-# both are covered by the model selftest and by directed tests.
+# RST 0 (restarts the program) is left out of the generator, covered by the model selftest and by
+# directed tests. HLT is generated as an instruction only (EI; HLT, so random INT can wake it), never
+# as an operand byte.
 EXCLUDED = R.UNDOCUMENTED | {0x76, 0xC7}
 FIELDS = "sync a_oe a d_oe d_out dbin wr_n wait_o hlda inte".split()
 CODE0, CODE1 = 0x0100, 0x2100                     # random code region
@@ -64,6 +65,8 @@ def gen(rng):
     while len(prog) < (CODE1 - CODE0) - 6:
         if rng.random() < 0.02:
             prog.append(0xFB)                          # extra EIs, so random INT is actually taken
+        if rng.random() < 0.003:
+            prog += [0xFB, 0x76]                       # EI; HLT: halt, woken by INT (or held from halt)
         op = rng.choice(safe)
         n = length(op)
         if op in JUMPS:
@@ -80,7 +83,7 @@ def gen(rng):
     t = r16(CODE0, CODE1 - 3)
     prog += [0xC3, t & 0xFF, t >> 8]
     mem[CODE0:CODE1] = prog
-    assert not EXCLUDED & set(prog)
+    assert not (EXCLUDED - {0x76}) & set(prog)
     return mem
 
 
@@ -192,12 +195,17 @@ def main():
             bad += 1
             if bad <= 20:
                 print(f"MISMATCH prog{p} (seed {a.seed + p}): {err}")
-    tw = ints = holds = 0
+    tw = ints = holds = halts = wakes = hold_halt = 0
     for p in range(a.nprog):
+        prev_twh = False
         for l in open(f"{a.out}/prog{p}/pins.txt"):
             f = l.split(); tw += f[7] == "1" and f[1] == "1"; ints += f[0] == "1" and f[4] in ("23", "2b")
             holds += f[8] == "1"
-    print(f"coverage: {tw} wait states (TW), {ints} interrupt acknowledges (INTA), {holds} states with HLDA = 1")
+            halts += f[0] == "1" and f[4] == "8a"; wakes += f[0] == "1" and f[4] == "2b"
+            hold_halt += f[8] == "1" and prev_twh
+            prev_twh = (f[7] == "1" and f[1] == "0") or (prev_twh and f[8] == "1")
+    print(f"coverage: {tw} wait states (TW), {ints} interrupt acknowledges (INTA), {holds} states with HLDA = 1, "
+          f"{halts} halts (HLTA), {wakes} wake-ups by INT (INTA 2B), {hold_halt} held states taken from halt")
     if STOPPED:
         print(f"stopped early (self-modified code reached an undocumented byte, §6): {len(STOPPED)} programs, after {sorted(STOPPED)} states")
     print(f"c8: seed={a.seed} stim={a.stim} programs={a.nprog} states={a.nst} mismatching_programs={bad}")

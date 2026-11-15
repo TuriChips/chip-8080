@@ -37,7 +37,8 @@ module tb;
         // here is the value present for the rest of this state, sampled at its closing edge.
         if (stim && sync === 1'b1) begin
           ready = ($urandom % 100) >= 10;                   // 10%: wait states in this cycle
-          if (!int_req) int_req = ($urandom % 100) < 3;     // INT rises in 3% of cycles
+          if (!int_req && d_out === 8'h8A) int_req = ($urandom % 100) < 50;   // halt ack's T1: 50%, to wake it
+          else if (!int_req) int_req = ($urandom % 100) < 3;     // INT rises in 3% of cycles
           else int_req = ($urandom % 100) >= 30;            // ... and falls in 30%
           if (!hold && hold_en) hold = ($urandom % 100) < 4; // HOLD requested in 4% of cycles
         end else if (stim && wait_o === 1'b1 && a_oe === 1'b1) begin
