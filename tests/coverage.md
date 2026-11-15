@@ -83,6 +83,10 @@ Spec: docs/spec.md (v1). Status per row: **done** (test written and passing, log
 
 - chip-8080#26: the spec's DAA text gives a wrong decimal sum for A = FA..FF (step 1 carries out of bit 7). The DAA test skips those 6 values until decided; DAA stays **partial** until then.
 
+## Cross-check against Beru's reference models (once ref/ is on main)
+
+`tests/crosscheck_all.sh` runs my generated expectations through `ref/ref8080.py` and `ref/pins8080.py`. Run on PR #29's ref/: all 37 C1/C5 trace programs (about 70,000 trace entries) and both C2 pin programs (25,494 states): 0 differences. The cross-check found two bugs in my own generators, both fixed: MOV r,M took the bus address after the destination L/H changed, and the M-form programs put their scratch byte at 4000 inside their own code.
+
 ## Tools
 
 - `tests/mach80.py`: machine model giving each instruction's machine cycles (spec §6.2) and effects; its selftest checks 27 state counts against §6.1 (PASS). `tests/c2/gen_pins80.py` + `tb/tb_pins80.sv` + `tests/run_pins80.sh`: expected pins per clock state from §4's table.

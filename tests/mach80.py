@@ -40,7 +40,7 @@ class Mach:
         if op == 'MOV':
             d, sr = a
             if 'M' not in (d, sr): s.put(d, s.get(sr)); return done([F5], 1)
-            if sr == 'M': s.put(d, s.get('M')); return done([F, ('R', s.hl(), None, 3)], 1)
+            if sr == 'M': h = s.hl(); s.put(d, s.get('M')); return done([F, ('R', h, None, 3)], 1)   # address taken before MOV H,M / MOV L,M change HL
             v = s.get(sr); s.put('M', v); return done([F, ('W', s.hl(), v, 3)], 1)
         if op == 'MVI':
             v = num(a[0 + 1]) & 255; s.pre = None
