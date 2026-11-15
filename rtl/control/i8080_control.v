@@ -72,7 +72,9 @@ module i8080_control (
     reg [7:0] tmp_r;
     assign tmp  = tmp_r;
     assign rst_vec = ir[5:3];   // valid from T4 of M1 (ir latched at the T3 edge)
-    assign inte = inte_r & ~reset;
+    // INTE drops at T1 of the INTA cycle (spec 2), not when the interrupt is accepted: a hold can sit
+    // between the two. The flip-flop clears at T1's closing edge; the pin reads 0 in T1 already.
+    assign inte = inte_r & ~reset & ~(inta_cyc && mcycle == 3'd1 && !held);
 
     // ---------------- decode ----------------
     wire        live = (mcycle == 3'd1) && (tstate == T3);
@@ -458,9 +460,10 @@ module i8080_control (
             if (m1 == 1'b0 && st_last && (is_ret || is_rcc) && mcycle == 3'd3) def_sp <= 1'b1;
             if (m1 && tstate == T2 && def_sp && !held) def_sp <= 1'b0;
             // interrupt accepted at the end of an instruction
-            if (accept) begin inta_cyc <= 1'b1; inta_halt <= 1'b0; inte_r <= 1'b0; end
+            if (accept) begin inta_cyc <= 1'b1; inta_halt <= 1'b0; end
             // interrupt accepted from halt
-            if (int_go) begin inta_cyc <= 1'b1; inta_halt <= 1'b1; halt_r <= 1'b0; inte_r <= 1'b0; end
+            if (int_go) begin inta_cyc <= 1'b1; inta_halt <= 1'b1; halt_r <= 1'b0; end
+            if (m1 && inta_cyc && tstate == T1 && !held) inte_r <= 1'b0;
             // the INTA cycle flag lasts until the end of its M1
             if (m1 && inta_cyc && st_last) begin inta_cyc <= 1'b0; inta_halt <= 1'b0; end
         end
