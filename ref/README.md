@@ -44,7 +44,10 @@ callbacks for that. Flags are compared on S, Z, AC, P, CY only (MAME's internal 
 bit 1 = 1).
 
 **Runner:** `tests/random/acc3/run.py` (MAME from `tests/random/acc3/fetch_mame.sh`). Evidence
-`logs/acc3-20261115T082452Z/`: 40 programs × 3,000 instructions, **all agree**. MAME independently agrees with three of
-the spec's rules: ANA's OR-of-bit-3 AC, the DCR AC *Decision* and DAA keeping CY (mutants of each are
-caught, see `notes.txt`). Known weakness, in `notes.txt`: 39% of traced instructions are a NOP
-slide after a wild jump.
+`logs/acc3-20261115T090255Z/`: 40 programs × 3,000 instructions, **all agree**. MAME independently agrees with three of
+the spec's rules: ANA's OR-of-bit-3 AC, the DCR AC *Decision* and DAA keeping CY (mutants of each
+caught: 20, 29 and 2 programs of 40, see `notes.txt`). Generator: preamble at 0040 behind a JMP,
+RST vectors hold RET, the stack seeded with cartridge addresses, no undocumented/IN/HLT/RST 0 byte
+anywhere. **Known weakness** (`notes.txt`): each program covers a median of 77 distinct cartridge
+addresses, and 62% of traced instructions are NOP slides after wild jumps. 76 mnemonics are covered,
+but per-program depth is shallow. `logs/acc3-20261115T082452Z/` is the first, superseded run.

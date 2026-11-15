@@ -15,7 +15,9 @@ import ref8080 as R  # noqa: E402
 
 MAME_DIR = os.path.abspath(os.environ.get("MAME_DIR", os.path.join(ROOT, "build", "mame")))
 CART = 0x2000
-EXCLUDED = R.UNDOCUMENTED | {0xDB, 0x76}       # spec §6 undocumented; IN (the 8255 drives it); HLT
+# Spec §6 undocumented; IN (the 8255 drives it); HLT (nothing wakes intel02); RST 0 (restarts the
+# program, so random code loops back to the preamble). RST 0 is still covered by the model selftest and C8.
+EXCLUDED = R.UNDOCUMENTED | {0xDB, 0x76, 0xC7}
 JUMPS = {0xC3, 0xCD} | {0xC2 | (c << 3) for c in range(8)} | {0xC4 | (c << 3) for c in range(8)}
 DIRECT = {0x22, 0x2A, 0x32, 0x3A}              # SHLD LHLD STA LDA
 LINE = re.compile(r"pc=([0-9A-F]{4}) a=([0-9A-F]{2}) f=([0-9A-F]{2}) bc=([0-9A-F]{4}) "
@@ -32,7 +34,7 @@ def length(op):
 
 
 def gen(rng):
-    """Preamble (spec §5) writes every register, then random instructions. Jump/call targets stay
+    """Preamble (spec §5) at 0040 writes every register, then random instructions. Jump/call targets stay
     in the cartridge; half of the direct memory accesses point at RAM. No byte in the cartridge is
     an EXCLUDED opcode, operands included: jumps land mid-instruction, so any byte can execute."""
     safe = [b for b in range(256) if b not in EXCLUDED]
@@ -43,8 +45,22 @@ def gen(rng):
             t = rng.randrange(lo, hi)
             if (t & 0xFF) not in EXCLUDED and (t >> 8) not in EXCLUDED:
                 return t
-    prog = [0x31, 0x00, 0xF4, 0x01, r8(), r8(), 0x11, r8(), r8(), 0x21, r8(), r8(), 0xE5, 0xF1,
-            0x3E, r8()]
+    def pair():                                # register-pair value: half point into the cartridge, so a
+        t = r16(0, CART) if rng.random() < 0.5 else r16(0, 65536)   # RET/PCHL of a pushed pair stays in code
+        return [t & 0xFF, t >> 8]
+    # Layout like a real system: 0000 JMP to the preamble at 0040; each RST vector 0008..0038 holds
+    # a RET, so a random RST n acts as a call and returns (without this, RSTs jumping back into the
+    # first bytes made tiny loops, and most runs repeated the same 10 instructions).
+    prog = [0xC3, 0x40, 0x00] + [0x00] * 5
+    for n in range(1, 8):
+        prog += [0xC9] + [0x00] * 7
+    # Stack seeded with 4 cartridge addresses, so an early RET/Rcc lands in code (with an empty stack
+    # it read 0000 from unmapped space and restarted the program, another tiny loop).
+    prog += [0x31, 0x00, 0xF4]
+    for _ in range(4):
+        t = r16(0x0040, CART)
+        prog += [0x21, t & 0xFF, t >> 8, 0xE5]
+    prog += [0x01, *pair(), 0x11, *pair(), 0x21, *pair(), 0xE5, 0xF1, 0x3E, r8()]
     ops = [b for b in range(256) if b not in EXCLUDED]
     while len(prog) < CART - 3:
         op = rng.choice(ops)
@@ -52,6 +68,11 @@ def gen(rng):
         if op in JUMPS:
             t = r16(0, CART)
             prog += [op, t & 0xFF, t >> 8]
+        elif op == 0x31:                       # LXI SP: keep the stack in RAM
+            t = r16(0xF002, 0xF400)
+            prog += [op, t & 0xFF, t >> 8]
+        elif op in (0x01, 0x11, 0x21):         # LXI B/D/H
+            prog += [op, *pair()]
         elif op in DIRECT:
             t = r16(0xF000, 0xF400) if rng.random() < 0.5 else r16(0, 65536)
             prog += [op, t & 0xFF, t >> 8]
