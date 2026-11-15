@@ -1,0 +1,87 @@
+
+18. Printing statistics.
+
+=== i8080 ===
+
+   Number of wires:               2949
+   Number of wire bits:           3217
+   Number of public wires:          49
+   Number of public wire bits:     240
+   Number of memories:               0
+   Number of memory bits:            0
+   Number of processes:              0
+   Number of cells:               3183
+     $_ANDNOT_                     139
+     $_AND_                        954
+     $_DFF_P_                       16
+     $_MUX_                        139
+     $_NAND_                      1271
+     $_NOR_                         70
+     $_NOT_                         19
+     $_ORNOT_                       87
+     $_OR_                         188
+     $_SDFFE_PP0N_                   4
+     $_SDFFE_PP0P_                  62
+     $_SDFFE_PP1N_                   1
+     $_SDFF_PP0_                    74
+     $_XNOR_                       129
+     $_XOR_                         30
+
+19. Executing LTP pass (find longest path).
+
+Longest topological path in i8080 (length=53):
+    0: \u_control.tstate [1]
+    1: $abc$17025$new_n355_ (via $abc$17025$auto$blifparse.cc:386:parse_blif$17030)
+    2: $abc$17025$new_n356_ (via $abc$17025$auto$blifparse.cc:386:parse_blif$17031)
+    3: $abc$17025$new_n358_ (via $abc$17025$auto$blifparse.cc:386:parse_blif$17033)
+    4: \u_control.dd [2] (via $abc$17025$auto$blifparse.cc:386:parse_blif$17043)
+    5: $abc$17025$new_n407_ (via $abc$17025$auto$blifparse.cc:386:parse_blif$17082)
+    6: $abc$17025$new_n408_ (via $abc$17025$auto$blifparse.cc:386:parse_blif$17083)
+    7: $abc$17025$new_n409_ (via $abc$17025$auto$blifparse.cc:386:parse_blif$17084)
+    8: $abc$17025$new_n412_ (via $abc$17025$auto$blifparse.cc:386:parse_blif$17087)
+    9: $abc$17025$new_n418_ (via $abc$17025$auto$blifparse.cc:386:parse_blif$17093)
+   10: $abc$17025$new_n429_ (via $abc$17025$auto$blifparse.cc:386:parse_blif$17104)
+   11: $abc$17025$new_n430_ (via $abc$17025$auto$blifparse.cc:386:parse_blif$17105)
+   12: $abc$17025$new_n431_ (via $abc$17025$auto$blifparse.cc:386:parse_blif$17106)
+   13: $abc$17025$new_n447_ (via $abc$17025$auto$blifparse.cc:386:parse_blif$17122)
+   14: $abc$17025$new_n448_ (via $abc$17025$auto$blifparse.cc:386:parse_blif$17123)
+   15: $abc$17025$new_n951_ (via $abc$17025$auto$blifparse.cc:386:parse_blif$17626)
+   16: $abc$17025$new_n952_ (via $abc$17025$auto$blifparse.cc:386:parse_blif$17627)
+   17: $abc$17025$new_n955_ (via $abc$17025$auto$blifparse.cc:386:parse_blif$17630)
+   18: $abc$17025$new_n958_ (via $abc$17025$auto$blifparse.cc:386:parse_blif$17633)
+   19: $abc$17025$new_n966_ (via $abc$17025$auto$blifparse.cc:386:parse_blif$17641)
+   20: $abc$17025$new_n967_ (via $abc$17025$auto$blifparse.cc:386:parse_blif$17642)
+   21: $abc$17025$new_n989_ (via $abc$17025$auto$blifparse.cc:386:parse_blif$17664)
+   22: $abc$17025$new_n1005_ (via $abc$17025$auto$blifparse.cc:386:parse_blif$17680)
+   23: $abc$17025$new_n1062_ (via $abc$17025$auto$blifparse.cc:386:parse_blif$17737)
+   24: $abc$17025$new_n1072_ (via $abc$17025$auto$blifparse.cc:386:parse_blif$17747)
+   25: $abc$17025$new_n1077_ (via $abc$17025$auto$blifparse.cc:386:parse_blif$17752)
+   26: $abc$17025$new_n1078_ (via $abc$17025$auto$blifparse.cc:386:parse_blif$17753)
+   27: $abc$17025$new_n1079_ (via $abc$17025$auto$blifparse.cc:386:parse_blif$17754)
+   28: $abc$17025$new_n1080_ (via $abc$17025$auto$blifparse.cc:386:parse_blif$17755)
+   29: $abc$17025$new_n1083_ (via $abc$17025$auto$blifparse.cc:386:parse_blif$17758)
+   30: $abc$17025$new_n1091_ (via $abc$17025$auto$blifparse.cc:386:parse_blif$17766)
+   31: $abc$17025$new_n1161_ (via $abc$17025$auto$blifparse.cc:386:parse_blif$17836)
+   32: $abc$17025$new_n1162_ (via $abc$17025$auto$blifparse.cc:386:parse_blif$17837)
+   33: $abc$17025$new_n1223_ (via $abc$17025$auto$blifparse.cc:386:parse_blif$17898)
+   34: $abc$17025$new_n1302_ (via $abc$17025$auto$blifparse.cc:386:parse_blif$17977)
+   35: $abc$17025$new_n1303_ (via $abc$17025$auto$blifparse.cc:386:parse_blif$17978)
+   36: $abc$17025$new_n1304_ (via $abc$17025$auto$blifparse.cc:386:parse_blif$17979)
+   37: $abc$17025$new_n1373_ (via $abc$17025$auto$blifparse.cc:386:parse_blif$18048)
+   38: $abc$17025$new_n1374_ (via $abc$17025$auto$blifparse.cc:386:parse_blif$18049)
+   39: $abc$17025$new_n1453_ (via $abc$17025$auto$blifparse.cc:386:parse_blif$18128)
+   40: $abc$17025$new_n1454_ (via $abc$17025$auto$blifparse.cc:386:parse_blif$18129)
+   41: $abc$17025$new_n1545_ (via $abc$17025$auto$blifparse.cc:386:parse_blif$18220)
+   42: $abc$17025$new_n1546_ (via $abc$17025$auto$blifparse.cc:386:parse_blif$18221)
+   43: $abc$17025$new_n1548_ (via $abc$17025$auto$blifparse.cc:386:parse_blif$18223)
+   44: $abc$17025$new_n1549_ (via $abc$17025$auto$blifparse.cc:386:parse_blif$18224)
+   45: $abc$17025$new_n1550_ (via $abc$17025$auto$blifparse.cc:386:parse_blif$18225)
+   46: $abc$17025$new_n1551_ (via $abc$17025$auto$blifparse.cc:386:parse_blif$18226)
+   47: \u_alu.res [7] (via $abc$17025$auto$blifparse.cc:386:parse_blif$18227)
+   48: $abc$17025$new_n3335_ (via $abc$17025$auto$blifparse.cc:386:parse_blif$20010)
+   49: $abc$17025$new_n3336_ (via $abc$17025$auto$blifparse.cc:386:parse_blif$20011)
+   50: $abc$17025$new_n3338_ (via $abc$17025$auto$blifparse.cc:386:parse_blif$20013)
+   51: $abc$17025$new_n3339_ (via $abc$17025$auto$blifparse.cc:386:parse_blif$20014)
+   52: $abc$17025$new_n3340_ (via $abc$17025$auto$blifparse.cc:386:parse_blif$20015)
+   53: $abc$17025$flatten\u_alu.$procmux$1009_Y (via $abc$17025$auto$blifparse.cc:386:parse_blif$20017)
+   ff: \u_alu.p (via $auto$ff.cc:266:slice$9429)
