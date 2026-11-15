@@ -1,6 +1,6 @@
 # Spec: Intel 8080 (Chip #2), DRAFT
 
-Status: **DRAFT v0, not normative.** Moved from `TuriChips/turichips` (#23, #26, both approved by Sai) to start Chip #2 (Sai, 2026-11-15, after the 4004 release). It becomes **v1** when every **[check]** item is confirmed against the datasheet (§10) and Sai signs it off. Until then, work that depends on an open [check] item waits; everything else may start.
+Status: **v1 candidate, waiting for Sai's sign-off (chip-8080#5).** Moved from `TuriChips/turichips` (#23, #26, both approved by Sai) to start Chip #2 (Sai, 2026-11-15, after the 4004 release). It becomes **v1** when every **[check]** item is confirmed against the datasheet (§10) and Sai signs it off. Until then, work that depends on an open [check] item waits; everything else may start.
 
 Facts marked **[check]** are from memory of the 8080 documentation and must be read from the page before this is normative. Choices that are ours, not Intel's, are marked *Decision*.
 
@@ -101,13 +101,13 @@ Ten machine-cycle types (User's Manual p.2-5). Instructions take 4, 5, 7, 10, 11
 - Every cell with `d_oe` = 0 or `a_oe` = 0: `d_out` or `a` respectively is **not compared**. `d_oe`, `a_oe`, `sync`, `dbin`, `wr_n`, `wait_o`, `hlda`, `inte` are compared in every state.
 - **Interrupt acknowledge cycle** (p.2-11): an enabled INT sets the internal interrupt latch in the last state of the current instruction, so the instruction always completes. The next cycle is like an M1 fetch, with status M1 = 1 **and** INTA = 1 (D0). `a` = PC in T1, but **PC is not incremented**. External logic puts the interrupt instruction on the bus for T3 (`i8080_system`: RST n, §7). INTE is reset at T1 of that cycle (p.5-14).
 - **Hold** (p.2-13): HLDA rises at the start of T3 of a read or input cycle, otherwise at the start of the state after T3. The address and data lines float shortly after the next φ2, which is within that same state. *Decision* (one clock per state): `hlda` = 1, `a_oe` = 0, `d_oe` = 0 from that state on. If the cycle needs T4/T5, the CPU runs through them internally while held, then stops at the end of the machine cycle. When HOLD falls, `hlda` = 0 at the next state boundary, and the CPU resumes with the next machine cycle.
-- **Halt** (p.2-13): after HLT, the CPU enters the halt state (TWH) after T2 of the next machine cycle, whose status has HLTA = 1. It leaves only by: RESET → T1 with PC = 0; HOLD → hold state, and back to halt when HOLD falls; or an interrupt with INTE = 1 → T1 of an interrupt-acknowledge cycle at the next state boundary. With INTE = 0 when the halt is entered, only RESET leaves it. In TWH (Figure 2-11, p.2-14): `wait_o` = 1 from the first TWH until the halt is left; `dbin` = 0; the address and data buses are drawn dashed. *Decision:* `a_oe` = 0 and `d_oe` = 0 in TWH, so `a`/`d_out` aren't compared. That reads Intel's dashed lines as floating, the same convention as the hold figures [check against the figure legend if one exists].
+- **Halt** (p.2-13): after HLT, the CPU enters the halt state (TWH) after T2 of the next machine cycle, whose status has HLTA = 1. It leaves only by: RESET → T1 with PC = 0; HOLD → hold state, and back to halt when HOLD falls; or an interrupt with INTE = 1 → T1 of an interrupt-acknowledge cycle at the next state boundary. With INTE = 0 when the halt is entered, only RESET leaves it. In TWH (Figure 2-11, p.2-14): `wait_o` = 1 from the first TWH until the halt is left; `dbin` = 0; the address and data buses are drawn dashed. *Decision:* `a_oe` = 0 and `d_oe` = 0 in TWH, so `a`/`d_out` aren't compared. That reads Intel's dashed lines as floating, the same convention as the hold figures (*Decision*, final: Figure 2-11 has no legend for the dashed lines, and the manual's text says only that the CPU is halted; floating matches the hold figures, where the text says the buses float.).
 ## 5. Reset
-RESET held for at least 3 clock periods restores PC to 0; it "has no effect on status flags, or on any of the processor's working registers (accumulator, registers, or stack pointer)", which stay indeterminate until the program sets them (User's Manual p.2-13, confirmed §10). RESET also resets INTE and HLDA (p.5-14). The instruction register on reset: [check]. *Decision:* tests hold reset ≥ 3 clocks and must not read A, B–L, SP or F before writing them; the RTL may clear them.
+RESET held for at least 3 clock periods restores PC to 0; it "has no effect on status flags, or on any of the processor's working registers (accumulator, registers, or stack pointer)", which stay indeterminate until the program sets them (User's Manual p.2-13, confirmed §10). RESET also resets INTE and HLDA (p.5-14). The instruction register on reset: the manual doesn't say; covered by the *Decision* below (cleared, so the first cycle after reset is an M1 fetch).. *Decision:* tests hold reset ≥ 3 clocks and must not read A, B–L, SP or F before writing them; the RTL may clear them.
 
-**Pins while `reset` = 1** (*Decision*, as for the 4004): `a_oe` = 0, `d_oe` = 0, `sync` = 0, `dbin` = 0, `wr_n` = 1, `wait_o` = 0, `hlda` = 0, `inte` = 0. Nothing else is compared while `reset` = 1. Comparison starts at the first T1 after `reset` falls, which is the M1 of an instruction fetch from 0000. Reset in the middle of an instruction or a hold abandons it: the M-cycle and T-state counters and the instruction register are cleared, so the first cycle after reset is always an M1 fetch [check against the real part; if the manual is silent, this stays a *Decision*].
+**Pins while `reset` = 1** (*Decision*, as for the 4004): `a_oe` = 0, `d_oe` = 0, `sync` = 0, `dbin` = 0, `wr_n` = 1, `wait_o` = 0, `hlda` = 0, `inte` = 0. Nothing else is compared while `reset` = 1. Comparison starts at the first T1 after `reset` falls, which is the M1 of an instruction fetch from 0000. Reset in the middle of an instruction or a hold abandons it: the M-cycle and T-state counters and the instruction register are cleared, so the first cycle after reset is always an M1 fetch (*Decision*, final: the manual is silent on mid-instruction reset; p.2-13 says only that RESET restores PC to 0 and execution starts at location 0, which this rule implements.).
 
-**Unreset registers in random tests** (*Decision*, Beru's option (b)): A, B–L, SP and F stay unreset, as on the real part. Every C8 program starts with a fixed preamble that writes all of them before anything reads them: `LXI SP,nnnn; LXI B; LXI D; LXI H; PUSH H; POP PSW; MVI A` (POP PSW sets F). The model starts comparing register-dependent results only after the preamble. The preamble's exact bytes go in `tests/random/` and are referenced here when written.
+**Unreset registers in random tests** (*Decision*, Beru's option (b)): A, B–L, SP and F stay unreset, as on the real part. Every C8 program starts with a fixed preamble that writes all of them before anything reads them: `LXI SP,nnnn; LXI B; LXI D; LXI H; PUSH H; POP PSW; MVI A` (POP PSW sets F). **Comparison starts at the first T1 after reset, preamble included.** The preamble reads nothing before writing it, and memory comes from the `$readmemh` image, so every pin is determined from that first T1, and there's no exemption window (Beru, turichips#26). The preamble's exact bytes go in `tests/random/` and are referenced here when written.
 
 ## 6. Instructions (normative once checked)
 244 documented opcodes (User's Manual p.4-15 summary, counted from the page image; the other 12 bytes are the undocumented ones in the decision below) in the groups below, each to get an exact table like the 4004's §6, with S/Z/AC/P/CY effects per instruction:
@@ -178,11 +178,11 @@ Fields: `DDD`/`SSS` = register code B 000, C 001, D 010, E 011, H 100, L 101, M 
 | 00 100 111 | DAA | decimal adjust (§6 quirk) | Z S P CY AC | 4 |
 | 00 100 010 b2 b3 | SHLD | (b3:b2) = L, (b3:b2 + 1) = H | – | 16 |
 | 00 101 010 b2 b3 | LHLD | L = (b3:b2), H = (b3:b2 + 1) | – | 16 |
-| 11 111 011 | EI | INTE = 1 after the next instruction (ALP p.3-24) | – | 4 |
-| 11 110 011 | DI | INTE = 0 | – | 4 |
+| 11 111 011 | EI | INTE flip-flop (and the `inte` pin) set at T4 of EI's M1 (state table p.2-18: "SET INTE F/F"); an interrupt can first be **accepted** at the end of the instruction after EI (ALP p.3-24) | – | 4 |
+| 11 110 011 | DI | INTE flip-flop (and the `inte` pin) cleared at T4 of DI's M1 (p.2-18: "RESET INTE F/F"); takes effect immediately, so an INT can't be accepted at the end of DI itself | – | 4 |
 | 00 000 000 | NOP | none | – | 4 |
 
-Checks of this table against p.4-15 still to do before sign-off: one more read of every row against the page image by a second agent (Beru, as the model writer). The machine-cycle breakdown per opcode (which cycles from §4 each instruction runs) goes in §6.2 from the manual's instruction-cycle tables (pp.2-16 to 2-20).
+Second read done: Beru checked every row against the p.4-15 page image (encodings and clock cycles all match, chip-8080#5), and `ref/ref8080.py selftest` checks the state count of all 244 opcodes, conditionals both ways, against p.4-15 written as independent encoding patterns. The machine-cycle breakdown per opcode (which cycles from §4 each instruction runs) goes in §6.2 from the manual's instruction-cycle tables (pp.2-16 to 2-20).
 
 ### 6.2 Machine cycles per instruction (User's Manual pp.2-16 to 2-20, from the page images)
 Notation: **F4** / **F5** = instruction fetch (§4 type 1) of 4 or 5 states (T5 only when the table uses it). **R(x)** = memory read (type 2) at address x, **W(x)** = memory write (type 3), 3 states each plus any TW. **SR**/**SW** = stack read/write (types 4/5) at SP. **IN**/**OUT** = types 6/7. **I3** = a 3-state machine cycle with no bus transfer (see the DAD note). "[9]" in the manual (the result of an ALU op written to A during T2 of the *next* M1) is internal overlap, not an extra cycle.
@@ -231,13 +231,15 @@ Notation: **F4** / **F5** = instruction fetch (§4 type 1) of 4 or 5 states (T5 
 | HLT | F4, then a halt-acknowledge cycle (§4 type 9: T1, T2, then TWH until it's left) | 7 |
 
 - `WZ` is the internal temporary pair holding the address from bytes 2–3. Only its value on `a` is visible.
-- **DAD** (p.2-16/2-17): M2 and M3 do internal adds with no "OUT STATUS" entry, so the table shows no bus transfer. What `sync`, `d_out`/`d_oe` and `a` do in those two cycles is **[check]**: it needs a timing figure or a second primary source. Until then C2 must not compare pins during DAD's M2/M3, and the reference model must mark them "not compared". This has to be settled before sign-off.
+- **DAD** (p.2-16/2-17): M2 and M3 do internal adds with no "OUT STATUS" entry, so the table shows no bus transfer, and no figure covers them. *Decision* (ours, no primary source; chip-8080#1): DAD's M2 and M3 are **bus-idle cycles of 3 states each**: `sync` = 0, `d_oe` = 0, `dbin` = 0, `wr_n` = 1, `wait_o` = 0, `a_oe` = 1 with `a` **not compared**. READY isn't sampled in them. This is a model choice that the RTL and the reference model must both follow. If a primary source later shows the real part asserting SYNC with a status byte there, this gets reopened by a spec PR.
 - After a taken jump, CALL, RST or RET, the next M1 fetches from the new PC. The manual's "WZ OUT, (WZ)+1 → PC" column (p.2-19) is that next fetch, not part of the current instruction.
 - Every row's total matches the state count in §6.1 (p.4-15). Notes [11]–[20] of the table (pp.2-19/2-20) still need a read for edge details (e.g. note [20], halt mode), before sign-off.
 
 Flag rules every opcode table row follows (to become per-opcode lines in the §6 tables):
 - P = 1 when the result has an even number of 1 bits. Z = result is 0. S = result bit 7.
-- INR/DCR: Z, S, P, AC from the result; **CY unchanged**.
+- INR/DCR: Z, S, P from the result; **CY unchanged** (ALP p.3-21: "DCR affects all the condition flags except the carry flag").
+  - INR: AC = carry out of bit 3 of `r + 1` (AC = 1 exactly when the low nibble was F).
+  - DCR: *Decision* (neither manual gives the rule, chip-8080#7): DCR is computed as `r + FF`, the same two's-complement form as SUB (`r + ~1 + 1`). So **AC = carry out of bit 3 of `r[3:0] + F`**, i.e. AC = 1 exactly when the low nibble of r was **not 0**. This is consistent with the SUB rule above (AC from the addition, not complemented).
 - DAD: **only CY** changes (carry out of bit 15).
 - CMP/CPI: flags exactly as SUB/SUI with the same operands; A unchanged. CY = 1 means borrow (A < operand, unsigned).
 - SUB/SUI/CMP/CPI (confirmed §10, ALP p.3-64): computed as the two's-complement addition `t = A + ~op + 1` (9 bits). **CY = NOT t[8]** (so CY = 1 means borrow), **AC = carry out of bit 3 of that addition, not complemented** (`AC = (A[3:0] + ~op[3:0] + 1) > 15`). The manual's example: SUB A with A = 3E gives CY = 0, S = 0, Z = 1, P = 1, AC = 1. SBB/SBI (ALP p.3-57): `t = A + ~op + (NOT CY)` (9 bits), CY = NOT t[8], AC = carry out of bit 3 of `A[3:0] + ~op[3:0] + (NOT CY)`. The manual's example: A = 4, B = 2, CY = 1 → A = 1, CY 0, S 0, Z 0, P 0, AC 1, which matches. *Decision:* the manual describes it as "add CY to the operand, then subtract", which wraps for op = FF with CY = 1. We specify the 9-bit form above, so the result is always the true `A − op − CY` mod 256, with CY = borrow.
@@ -247,7 +249,7 @@ Flag rules every opcode table row follows (to become per-opcode lines in the §6
 Known quirks to pin down exactly (each needs a source):
 - **AC after logical instructions** (confirmed §10): ANA/ANI set **AC = (bit 3 of A) OR (bit 3 of the operand)**, before the AND, and clear CY (8080/8085 Assembly Language Programming Manual p.1-11: "The 8080 logical AND instructions set the flag to reflect the logical OR of bit 3 of the values involved"; on the 8085 AND always sets AC, so the 8080 rule is the one we follow). ORA, XRA, XRI clear both CY and AC (same manual, ch.3), and ORI too (User's Manual p.4-9: "The CY and AC flags are cleared"). The 1975 User's Manual (p.4-8) only says "standard rules" for these, which is why the second source is needed.
 - **CY after SUB/CMP**: set on borrow (inverse of the 4004's SUB convention). This needs an explicit statement.
-- **DAA** (User's Manual p.4-8, ALP manual p.3-19; 4 states): step 1, if `A[3:0] > 9` or AC = 1, add 6 to A, and **AC = carry out of bit 3** of that addition, else AC = 0 [check: AC when step 1 doesn't add]. Step 2, if `A[7:4] > 9` (after step 1) or CY = 1, add 6 to `A[7:4]`. **CY = 1 if that addition carries out of bit 7** (the ALP example: 93+08 → 9B → A1 → 01, CY = AC = 1). *Decision* (not stated by either manual): CY = CY_in OR carry-out, so a CY that was already 1 stays 1. A set CY means the decimal result already exceeds 99. Z, S, P from the final A.
+- **DAA** (User's Manual p.4-8, ALP manual p.3-19; 4 states): step 1, if `A[3:0] > 9` or AC = 1, add 6 to A, and **AC = carry out of bit 3** of that addition. When step 1 doesn't add, AC = 0 (*Decision*: neither manual states it; adding nothing produces no carry out of bit 3, so this is the same rule applied to 0). Step 2, if `A[7:4] > 9` (after step 1) or CY = 1, add 6 to `A[7:4]`. **CY = 1 if that addition carries out of bit 7** (the ALP example: 93+08 → 9B → A1 → 01, CY = AC = 1). *Decision* (not stated by either manual): CY = CY_in OR carry-out, so a CY that was already 1 stays 1. A set CY means the decimal result already exceeds 99. Z, S, P from the final A.
 - **Undocumented opcodes** (*Decision*, 2026-11-14): the 12 bytes that Intel's manuals don't define (08, 10, 18, 20, 28, 30, 38, CB, D9, DD, ED, FD) are **not tested**, and C8's generator excludes them, as for the 4004's 01–0F/FE/FF. The RTL may implement the commonly reported behaviour (08–38 as NOP, CB as JMP, D9 as RET, DD/ED/FD as CALL). That isn't required, because we have no primary source for it. If a primary-quality source turns up before the RTL is written, this can be reopened by a spec PR.
 
 ## 7. System for tests (reduced detail)
@@ -255,9 +257,9 @@ Known quirks to pin down exactly (each needs a source):
 
 **Interrupt acknowledge in `i8080_system`** (*Decision*): during an INTA cycle (status D0 = 1) the system puts a single RST n opcode on the bus, with n (0–7) from a test input `int_vector[2:0]`. CALL via INTA is not used in this project. INT while halted: the halt is left through the INTA M1 cycle exactly as from a running instruction, timing per §4 when written.
 
-**Input stimulus rule** (*Decision*, the same idea as the 4004's TEST rule): tests change `ready`, `hold` and `int_req` only on the clock edge that **starts** a T1 or TW state, never mid-state. The exact sampling edges (READY at the end of T2/TW, HOLD at the end of T2 or in halt, INT at the end of the last state of each instruction and only if INTE = 1 at that edge) are [check] and get pinned in §4 with page references. The stimulus rule makes any edge within the state equivalent for a correct design.
+**Input stimulus rule** (*Decision*, the same idea as the 4004's TEST rule): tests change `ready`, `hold` and `int_req` only on the clock edge that **starts** a T1 or TW state, never mid-state. The exact sampling edges (READY at the end of T2/TW, HOLD at the end of T2 or in halt, INT at the end of the last state of each instruction and only if INTE = 1 at that edge) are pinned in §4: READY and HOLD in T2 (and READY in each TW), from Table 2-2 (p.2-10); INT in the last state of the instruction, gated by INTE (p.2-11). The stimulus rule makes any edge within the state equivalent for a correct design.
 
-## 8. Behaviours to test (draft)
+## 8. Behaviours to test
 | ID | Behaviour |
 |----|-----------|
 | C1 | Every opcode: registers, memory and all five flags exactly per §6 |
@@ -267,12 +269,24 @@ Known quirks to pin down exactly (each needs a source):
 | C5 | DAA and AC in every case |
 | C6 | Reset |
 | C7 | No X/Z on any output; no bus conflict |
-| C8 | Random programs vs Beru's reference model on every pin and state |
+| C8 | Random programs vs Beru's reference model on every pin and state: at least **10,000 programs × 1,000 instructions** (same scale as the 4004's C9), every program starting with the §5 preamble, plus mid-run resets, wait states, holds and interrupts per the §7 stimulus rule, and a variant on the synthesized gate-level netlist |
 
-## 9. Acceptance tests (software not written by this team), candidates
-1. **8080 instruction exercisers** that are widely used to validate 8080 emulators (e.g. the "8080 Instruction Exerciser" family and CPU test programs that run under a minimal CP/M BDOS stub). The licence and provenance of each must be checked before use. Same rule as Busicom: fetched at test time, never committed (rule 9).
-2. **Example programs from the 8080 User's Manual**, typed in, with expected results from the manual's text.
-3. **Instruction-level comparison against an independent existing 8080 emulator** (Beru chooses, like MAME for the 4004).
+**What "covered" means, from day one** (Beru's 4004 lesson):
+- `tests/coverage.md` (Titus) maps **every row of §6.1 and every C-row above** to a named test and the log it passed in. The release needs every row done, none partial.
+- `tests/random/coverage.md` (Beru) lists what C8 exercised, with counts (every opcode, every §4 cycle type, every condition code taken and not taken, wait/hold/interrupt at every legal state) and an empty Gaps section, with the excluded bytes (§6, undocumented) and their reason listed.
+- No-X/Z and no-bus-conflict checks run on every test, with a deliberate mutant that proves they can fail, **and a test where two drivers are on at once, checking that `bus_conflict` rises** (the positive case). A check that has never seen a 1 isn't proven (Beru, chip-8080#5, from chip-4004#38).
+
+## 9. Acceptance tests (software not written by this team)
+Licences checked 2026-11-15 (chip-8080#1). Same rule as the 4004's Busicom test: third-party programs are **fetched at test time and never committed** (rule 9), even when their licence would allow it, and the release credits their authors.
+
+1. **8080PRE and 8080EXM**, the 8080 instruction-set exercisers. They are Frank D. Cringle's Z80 exerciser (zexlax, © 1994) modified for the 8080 by Ian Bartholomew (2009). **Licence: GNU GPL, version 2 or later**, read from the source header ("Copyright (C) 1994 Frank D. Cringle … GNU General Public License … either version 2 of the License, or (at your option) any later version"; "Modified to exercise an 8080 by Ian Bartholomew, February 2009").
+   - 8080PRE is the short preliminary test. Run it first, since it stops at the first broken basic instruction.
+   - 8080EXM exercises every instruction against expected CRCs of the flags and results. **Use the "M" variant**, whose CRCs are for an Intel 8080. The widely mirrored `8080EX1` has CRCs for the Soviet KR580VM80A clone, so a correct Intel-compatible design would fail some of its lines. The fetch script must pin the exact file (URL + sha256) and record where the expected CRCs came from.
+   - They run under CP/M. `i8080_system` provides a minimal BDOS stub, our own code, in the testbench: the program loads at 0100h, `CALL 5` with C = 2 (print char in E) and C = 9 (print `$`-terminated string at DE) prints to the log, and a jump to 0000h ends the run. Pass = the program's own "ERROR" lines are absent and its final OK message is printed.
+   - **Run length:** the full 8080EXM is on the order of 10⁹ instructions. It must run on Verilator (not Icarus), and a CI run may take the whole exerciser only nightly. Per-push CI runs 8080PRE plus a named subset. The release needs one full 8080EXM pass with its log.
+2. **Excluded for licence reasons:** TST8080 (Microcosm Associates, the "Kelly Smith test") and CPUTEST (SuperSoft Associates, © 1981). No licence or permission found, so they're treated as copyrighted. Reopen only with explicit terms.
+3. **Example programs from the 8080 User's Manual** (1975), typed in from the page images, with expected results from the manual's text where it gives them, otherwise from independent arithmetic, as for the 4004's acceptance test 2.
+4. **Instruction-level comparison against an independent existing 8080 emulator.** Beru chooses it (MAME's i8080 core, BSD-3-Clause, is the first candidate, as for the 4004), and records the choice and licence in `ref/README.md`.
 
 ## 10. Datasheet check
 Source read: Intel *8080 Microcomputer Systems User's Manual*, September 1975 (98-153B, scan with text layer), read 2026-11-14 by Igris. Page numbers are the manual's printed numbers.
@@ -280,7 +294,7 @@ Source read: Intel *8080 Microcomputer Systems User's Manual*, September 1975 (9
 - [x] Status word per cycle type (Table 2-1 chart, p.2-6): A2, 82, 00, 86, 04, 42, 10, 23, 8A, 2B.
 - [x] Reset: ≥ 3 clock periods, PC to 0, no effect on flags, A, B–L or SP (p.2-13).
 - [x] Reset also resets INTE and HLDA; "flags, accumulator, stack pointer, and registers are not cleared" (p.5-14).
-- [ ] Reset effect on the instruction register.
+- [x] Reset effect on the instruction register: not in either manual; §5 *Decision* (cleared).
 - [x] Pin functions (8080A functional pin definition, p.5-14): WR active low; READY low → WAIT; HOLD recognised in HALT or in T2/TW with READY active; HLDA from T3 (read/input) or the period after T3 (write/output); INTE reset by RESET and at T1 of M1 when an interrupt is accepted; INT recognised at the end of an instruction or while halted, not in HOLD or with INTE = 0.
 - [x] Flag byte for PUSH/POP PSW: bit 0 CY, 1 = 1, 2 P, 3 = 0, 4 AC, 5 = 0, 6 Z, 7 S (p.4-13).
 - [x] Pinout (p.5-14 figure; confirmed on the rendered page image, including pins 31 = A5 and 34 = A8): 1 A10, 2 GND, 3 D4, 4 D5, 5 D6, 6 D7, 7 D3, 8 D2, 9 D1, 10 D0, 11 −5V, 12 RESET, 13 HOLD, 14 INT, 15 φ2, 16 INTE, 17 DBIN, 18 WR, 19 SYNC, 20 +5V, 21 HLDA, 22 φ1, 23 READY, 24 WAIT, 25 A0, 26 A1, 27 A2, 28 +12V, 29 A3, 30 A4, 31 A5, 32 A6, 33 A7, 34 A8, 35 A9, 36 A15, 37 A12, 38 A13, 39 A14, 40 A11. Reference only; tests bind to the RTL port names in §2.
@@ -301,7 +315,11 @@ Second source: Intel *8080/8085 Assembly Language Programming Manual* (9800301D,
 - [x] Halt flow (Figure 2-12, p.2-14) matches the three exits in §4. (p.5-14 only says A15–A0 "denotes the I/O device number for up to 256 input and 256 output devices").
 - [x] Undocumented opcodes: decided not tested (§6), since neither Intel manual defines them.
 - [x] Opcode count: 244 documented in the instruction summary (p.4-15, page image): MOV/HLT 64, MVI 8, INR 8, DCR 8, ALU reg/mem 64, ALU immediate 8, rotates 4, branches 35, IN/OUT 2, LXI/PUSH/POP 12, STA/LDA/XCHG/XTHL/SPHL/PCHL 6, DAD/STAX/LDAX/INX/DCX 16, CMA/STC/CMC/DAA/SHLD/LHLD/EI/DI/NOP 9. None of 08, 10, 18, 20, 28, 30, 38, CB, D9, DD, ED, FD appears.
-- [ ] Reset in mid-instruction / mid-hold and the instruction register (§5 *Decision* until a source says otherwise).
+- [x] Reset in mid-instruction / mid-hold: not in either manual; §5 *Decision*.
+- [x] DAD M2/M3 pins: no figure or text; §6.2 *Decision* (bus-idle, 3 states each).
+- [x] DAA AC when step 1 doesn't add: not stated; §6 *Decision* (AC = 0).
+- [x] Halt-state buses: Figure 2-11 dashed, no legend; §4 *Decision* (floating).
+- [x] Sampling: READY/HOLD in T2 (Table 2-2, p.2-10), INT in the last state, gated by INTE (p.2-11).
 - [x] SUB/SUI flags: CY = complement of the carry out of `A + ~op + 1`, AC = carry out of bit 3 of that addition, not complemented (ALP p.3-64, page image: SUB A with 3E → CY 0, S 0, Z 1, P 1, AC 1). CMP/CPI: same flags as SUB, A unchanged.
 - [x] SBB/SBI: example A=4, B=2, CY=1 → 1, CY 0, AC 1 (ALP p.3-57, page image) matches `A + ~op + NOT CY`. The op = FF, CY = 1 edge is a *Decision* (§6).
 - [x] EI: "enables the interrupt system following execution of the next program instruction" (ALP p.3-24).
