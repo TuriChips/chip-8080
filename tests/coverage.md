@@ -71,8 +71,8 @@ Spec: docs/spec.md (v1). Status per row: **done** (test written and passing, log
 | ID | Behaviour | Test | Status |
 |---|---|---|---|
 | C1 | Every opcode: registers, memory and all five flags exactly per §6 | (the rows above) | todo |
-| C2 | Pin timing per §4 for every machine-cycle type, incl. the status byte at SYNC | `tests/c2/gen_pins80.py` (2 seeded programs, ~12,600 states each: fetch with 4 and 5 states, memory/stack read and write incl. XTHL's 5-state write, input, output, DAD's idle cycles, taken and not-taken Jcc/Ccc/Rcc) + `tb/tb_pins80.sv`; not yet run (no RTL). Wait states, hold, halt, interrupt-acknowledge cycles (types 8-10): C3/C4 | partial |
-| C3 | READY / wait states, HOLD / HLDA at every legal point | | todo |
+| C2 | Pin timing per §4 for every machine-cycle type, incl. the status byte at SYNC | `tests/c2/gen_pins80.py` (3 seeded programs, ~12,600-14,700 states each, seed 3 with 1-2 READY wait states in a quarter of the cycles: fetch with 4 and 5 states, memory/stack read and write incl. XTHL's 5-state write, input, output, DAD's idle cycles, taken and not-taken Jcc/Ccc/Rcc) + `tb/tb_pins80.sv`; not yet run (no RTL). HOLD, halt, interrupt-acknowledge cycles (types 8-10): C3/C4 | partial |
+| C3 | READY / wait states, HOLD / HLDA at every legal point | READY wait states at every cycle type: `gen_pins80.py` seed 3 (agrees with Beru's pin model, 0 differences). HOLD/HLDA: not yet | partial |
 | C4 | Interrupts: EI after the next instruction, RST via INTA, INT while halted | | todo |
 | C5 | DAA and AC in every case | | todo |
 | C6 | Reset | | todo |
@@ -85,7 +85,7 @@ Spec: docs/spec.md (v1). Status per row: **done** (test written and passing, log
 
 ## Cross-check against Beru's reference models (once ref/ is on main)
 
-`tests/crosscheck_all.sh` runs my generated expectations through `ref/ref8080.py` and `ref/pins8080.py`. Run on PR #29's ref/: all 37 C1/C5 trace programs (about 70,000 trace entries) and both C2 pin programs (25,494 states): 0 differences. The cross-check found two bugs in my own generators, both fixed: MOV r,M took the bus address after the destination L/H changed, and the M-form programs put their scratch byte at 4000 inside their own code.
+`tests/crosscheck_all.sh` runs my generated expectations through `ref/ref8080.py` and `ref/pins8080.py`. Run on PR #29's ref/: all 37 C1/C5 trace programs (about 70,000 trace entries) and all three C2 pin programs (40,172 states, one with wait states): 0 differences. The cross-check found two bugs in my own generators, both fixed: MOV r,M took the bus address after the destination L/H changed, and the M-form programs put their scratch byte at 4000 inside their own code.
 
 ## Tools
 
