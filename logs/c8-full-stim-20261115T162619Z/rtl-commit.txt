@@ -1,0 +1,7 @@
+RTL under test: local merge (not committed) of main 8458750 +
+  zura/timing 38333dd
+  zura/control f9eedc7
+  zura/system d88b39d
+  ada/datapath 70b69e6
+  ada/mem 703b922
+Model: ref/ from beru/c8-hold (#42)

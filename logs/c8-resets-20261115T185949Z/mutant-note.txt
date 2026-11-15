@@ -1,0 +1,3 @@
+Mutants (not committed), same 20 programs x 20000 states, seed 1:
+  RTL: i8080_control no longer forces WR high during RESET  -> 7/20 programs mismatch (RAM after RESET)
+  harness: never roll back unfinished writes at RESET       -> 5/20 programs mismatch (RAM after RESET)

@@ -1,0 +1,3 @@
+faulty RTL: bus_conflict = 1 in 1248 states, 1248 of them with d_oe = dbin = 1
+clean RTL:  bus_conflict = 1 in 0 states
+PASS conflict_check: bus_conflict rises exactly when two drivers are on

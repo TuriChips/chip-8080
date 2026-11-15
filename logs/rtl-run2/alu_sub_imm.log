@@ -1,0 +1,3 @@
+WARNING: tb/tb_prog80.sv:27: $readmemh(build/gen/c1/alu_sub_imm.exp): Not enough words in the file for the requested range [0:65535].
+PASS: trace=784 expected=784 errors=0
+tb/tb_prog80.sv:63: $finish called at 278570000 (1ps)
