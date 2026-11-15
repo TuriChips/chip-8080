@@ -55,10 +55,10 @@ module i8080 (
     assign wdata = (wdata_sel == 3'd0) ? d_in : (wdata_sel == 3'd1) ? result :
                    (wdata_sel == 3'd2) ? {2'b00, rst_vec, 3'b000} :
                    (wdata_sel == 3'd3) ? a_out : 8'h00;
-    // data bus out: 0 status, 1 ALU result, 2 regs rdata, 3 A, 4 F, 5 tmp
+    // data bus out (blocks.md v1.1): 0 status, 1 ALU result, 2 regs rdata, 4 A, 5 F, 6 tmp (3, 7 reserved)
     assign d_out = (d_out_sel == 3'd0) ? status : (d_out_sel == 3'd1) ? result :
-                   (d_out_sel == 3'd2) ? rdata : (d_out_sel == 3'd3) ? a_out :
-                   (d_out_sel == 3'd4) ? f_out : tmp;
+                   (d_out_sel == 3'd2) ? rdata : (d_out_sel == 3'd4) ? a_out :
+                   (d_out_sel == 3'd5) ? f_out : (d_out_sel == 3'd6) ? tmp : 8'h00;
 
     i8080_alu u_alu (
         .clk(clk), .reset(reset), .a_we(alu_a_we), .f_we(alu_f_we),

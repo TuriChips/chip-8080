@@ -2,7 +2,7 @@
 // Ports per docs/blocks.md section 2 / 2a, plus the additions listed in chip-8080#28:
 //   tmp[7:0]         TMP latch (d_in at T3 of a read) for INR/DCR M and MVI M write-back
 //   alu_pop_f        POP PSW: load F from b
-//   d_out_sel        3 bits: 0 status, 1 ALU result, 2 regs rdata, 3 ALU a_out, 4 ALU f_out, 5 tmp
+//   d_out_sel        3 bits (blocks.md v1.1): 0 status, 1 ALU result, 2 regs rdata, 4 ALU a_out, 5 ALU f_out, 6 tmp
 //   wdata_sel        3 bits: 0 d_in, 1 ALU result, 2 {00,NNN,000}, 3 ALU a_out, 4 zero
 //   alu_src          2 bits: 0 regs rdata, 1 d_in, 2 tmp, 3 ALU a_out
 //   pair_op 13       PC <- {wdata, Z}, W <- wdata (JMP, taken Jcc, RET, taken Rcc)
@@ -282,7 +282,7 @@ module i8080_control (
         alu_op = 5'd0; alu_a_we = 1'b0; alu_f_we = 1'b0; alu_cy_load = 1'b0; alu_pop_f = 1'b0;
         alu_src = 2'd0; reg_rd_sel = {1'b0, ss}; reg_wr_sel = 4'd0; reg_we = 1'b0; wdata_sel = 3'd0;
         rp_sel = rp; sp_o = P_NONE; d_out_sel = 3'd0;
-        if (cyc_wr && (tstate != T1)) d_out_sel = 3'd3;     // default write data: A
+        if (cyc_wr && (tstate != T1)) d_out_sel = 3'd4;     // default write data: A
         if (reset) begin end
         else begin
         // deferred SP+1 (RET / Rcc)
@@ -368,10 +368,10 @@ module i8080_control (
             end
             // write data for this cycle
             if (mov_mr) begin
-                if (ss == 3'd7) d_out_sel = 3'd3; else begin d_out_sel = 3'd2; reg_rd_sel = {1'b0, ss}; end
+                if (ss == 3'd7) d_out_sel = 3'd4; else begin d_out_sel = 3'd2; reg_rd_sel = {1'b0, ss}; end
             end
             if (is_push) begin
-                if (psw) d_out_sel = 3'd3; else begin d_out_sel = 3'd2; reg_rd_sel = rhi; end
+                if (psw) d_out_sel = 3'd4; else begin d_out_sel = 3'd2; reg_rd_sel = rhi; end
             end
             if (is_call || is_ccc || is_rst) begin d_out_sel = 3'd2; reg_rd_sel = R_PCH; end
         end
@@ -398,9 +398,9 @@ module i8080_control (
             if (is_inr || is_dcr) begin
                 d_out_sel = 3'd1; alu_src = 2'd2; alu_op = is_inr ? 5'd8 : 5'd9;
             end
-            if (is_mvi) d_out_sel = 3'd5;
+            if (is_mvi) d_out_sel = 3'd6;
             if (is_push) begin
-                if (psw) d_out_sel = 3'd4; else begin d_out_sel = 3'd2; reg_rd_sel = rlo; end
+                if (psw) d_out_sel = 3'd5; else begin d_out_sel = 3'd2; reg_rd_sel = rlo; end
             end
             if (is_rst) begin d_out_sel = 3'd2; reg_rd_sel = R_PCL; end
         end
@@ -422,9 +422,9 @@ module i8080_control (
             if (is_xthl) begin d_out_sel = 3'd2; reg_rd_sel = R_L; if (tstate == T4) sp_o = P_HLWZ; end
         end
         endcase
-        if (mcycle == 3'd4 && is_sta) d_out_sel = 3'd3;
-        if (mcycle == 3'd2 && is_stax) d_out_sel = 3'd3;
-        if (mcycle == 3'd3 && is_out) d_out_sel = 3'd3;
+        if (mcycle == 3'd4 && is_sta) d_out_sel = 3'd4;
+        if (mcycle == 3'd2 && is_stax) d_out_sel = 3'd4;
+        if (mcycle == 3'd3 && is_out) d_out_sel = 3'd4;
         if (mcycle == 3'd5 && is_shld) begin d_out_sel = 3'd2; reg_rd_sel = R_H; end
         if (tstate == T1) d_out_sel = 3'd0;
         end
