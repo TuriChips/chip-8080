@@ -75,7 +75,7 @@ Spec: docs/spec.md (v1). Status per row: **done** (test written and passing, log
 | C3 | READY / wait states, HOLD / HLDA at every legal point | READY wait states at every cycle type: `gen_pins80.py` seed 3 (agrees with Beru's pin model, 0 differences). HOLD/HLDA: not yet | partial |
 | C4 | Interrupts: EI after the next instruction, RST via INTA, INT while halted | | todo |
 | C5 | DAA and AC in every case | | todo |
-| C6 | Reset | | todo |
+| C6 | Reset | `tests/c6/reset_mid` via `tests/c6/run.sh` (reset lands on 16 consecutive clocks mid-run, incl. mid-instruction; reset pins of spec §5; INTE cleared; first state after reset is T1 of a fetch from 0000; program restarts). Not yet: reset during HOLD / halt / a wait state | partial (not yet run: no RTL) |
 | C7 | No X/Z on any output; no bus conflict, with a mutant and the positive `bus_conflict` case (two drivers on) | | todo |
 | C8 | Random programs vs the reference model | Beru | n/a |
 

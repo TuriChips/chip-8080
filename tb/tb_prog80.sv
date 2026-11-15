@@ -1,7 +1,7 @@
 // Program-trace testbench on the i8080 pins (spec sections 2, 4, 8). It supplies its own 64 KiB memory and an
 // input-port model, so tests bind only to the CPU's pins.
 // Defines: -DMEMFILE="path" ($readmemh image with @addr records, from tests/asm80.py)
-// Plusargs: +EXP=<file, one 16-bit hex word {port, data} per OUT, in order>  +N=<number of entries>  +TIMEOUT=<clocks>
+// Plusargs: +EXP=<file, one 16-bit hex word {port, data} per OUT, in order>  +N=<number of entries>  +TIMEOUT=<clocks>  +RESET_AT=<clock, reset again mid-run, C6>
 // Trace = every OUT instruction's port (a[7:0]) and data (d_out at the cycle with status 10), so a program
 // shows registers and flags by moving them to A and writing them out (PUSH PSW / POP rp / MOV A,r / OUT).
 // IN returns {port ^ 5A} (so a read of port p gives p ^ 0x5A). Memory writes land in mem[].
@@ -23,12 +23,30 @@ module tb_prog80;
     if (!$value$plusargs("EXP=%s", expf)) begin $display("FAIL no +EXP"); $finish; end
     if (!$value$plusargs("N=%d", n) || n == 0) begin $display("FAIL empty or missing +N (no expected trace)"); $finish; end
     if (!$value$plusargs("TIMEOUT=%d", timeout)) timeout = 2000000;
+    if (!$value$plusargs("RESET_AT=%d", rst_at)) rst_at = -1;
     $readmemh(expf, exp);
     repeat (5) @(posedge clk);       // RESET held >= 3 clocks (spec section 5)
     @(negedge clk); reset = 0;
   end
-  always @(negedge clk) if (!reset) begin
+  // Optional mid-run reset (C6): +RESET_AT=<clock> asserts reset there for 5 clocks (>= 3, spec 5). While reset = 1 the pins must
+  // be a_oe 0, d_oe 0, sync 0, dbin 0, wr_n 1, wait_o 0, hlda 0, inte 0 (spec 5, checked from the 2nd reset clock). After it falls the first
+  // state is T1 of an M1 fetch from 0000 with status A2 and INTE = 0: checked.
+  integer rst_at = -1, rcnt = 0; reg in_mid = 0, mid_done = 0, first_after = 0;
+  always @(negedge clk) if (in_mid || (rst_at >= 0 && cyc == rst_at && !mid_done)) begin
+    if (!in_mid) begin in_mid = 1; mid_done = 1; reset = 1; rcnt = 0; end
+    else begin
+      rcnt = rcnt + 1;
+      if (rcnt >= 2 && ({a_oe, d_oe, sync, dbin, wr_n, wait_o, hlda, inte} !== 8'b0000_1000)) begin
+        errors = errors + 1; $display("FAIL reset pins at reset clock %0d: a_oe=%b d_oe=%b sync=%b dbin=%b wr_n=%b wait=%b hlda=%b inte=%b", rcnt, a_oe, d_oe, sync, dbin, wr_n, wait_o, hlda, inte); end
+      if (rcnt == 5) begin reset = 0; in_mid = 0; first_after = 1; logged = 0; end
+    end
+  end else if (!reset) begin
     cyc = cyc + 1;
+    if (first_after) begin
+      first_after = 0;
+      if (!(sync === 1'b1 && a === 16'h0000 && d_out === 8'hA2 && inte === 1'b0)) begin errors = errors + 1;
+        $display("FAIL after reset: first state is not T1 of a fetch from 0000 (sync=%b a=%h status=%h inte=%b)", sync, a, d_out, inte); end
+    end
     if (sync === 1'b1) begin stat = d_out; seen_t1 = 1; logged = 0; end
     if (seen_t1 && (^{a, a_oe, d_out, d_oe, sync, dbin, wr_n, wait_o, hlda, inte} === 1'bx)) begin
       errors = errors + 1; $display("FAIL C7 X/Z on an output at clock %0d", cyc); end
