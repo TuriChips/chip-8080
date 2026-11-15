@@ -4,7 +4,7 @@
 set -euo pipefail
 name=$1; b=build/prog80/$(basename "$name"); mkdir -p "$b" logs
 python3 tests/asm80.py "$name.asm" "$b/mem.hex"
-iverilog -g2012 -DMEMFILE="\"$b/mem.hex\"" -o "$b/sim.vvp" tb/tb_prog80.sv $(find "${RTL_DIR:-rtl}" -name '*.v')
+iverilog -g2012 -DMEMFILE="\"$b/mem.hex\"" -o "$b/sim.vvp" tb/tb_prog80.sv $(find "${RTL_DIR:-rtl}" -name '*.v' ! -name i8080_system.v)
 plus=""; [ -f "$name.plus" ] && plus=$(cat "$name.plus")
 vvp -n "$b/sim.vvp" +EXP="$name.exp" +N=$(wc -l < "$name.exp") $plus ${EXTRA_PLUS:-} 2>&1 | tee "logs/$(basename "$name")${LOGSUFFIX:-}.log"
 grep -q '^PASS' "logs/$(basename "$name")${LOGSUFFIX:-}.log"

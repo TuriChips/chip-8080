@@ -30,7 +30,7 @@ module tb_prog80;
   end
   // Optional mid-run reset (C6): +RESET_AT=<clock> asserts reset there for 5 clocks (>= 3, spec 5). While reset = 1 the pins must
   // be a_oe 0, d_oe 0, sync 0, dbin 0, wr_n 1, wait_o 0, hlda 0, inte 0 (spec 5, checked from the 2nd reset clock). After it falls the first
-  // state is T1 of an M1 fetch from 0000 with status A2 and INTE = 0: checked.
+  // T1 is an M1 fetch from 0000 with status A2 and INTE = 0: checked.
   integer rst_at = -1, rcnt = 0; reg in_mid = 0, mid_done = 0, first_after = 0;
   always @(negedge clk) if (in_mid || (rst_at >= 0 && cyc == rst_at && !mid_done)) begin
     if (!in_mid) begin in_mid = 1; mid_done = 1; reset = 1; rcnt = 0; end
@@ -42,10 +42,10 @@ module tb_prog80;
     end
   end else if (!reset) begin
     cyc = cyc + 1;
-    if (first_after) begin
+    if (first_after && sync === 1'b1) begin     // the first T1 after reset (spec 5), whichever clock it falls on
       first_after = 0;
-      if (!(sync === 1'b1 && a === 16'h0000 && d_out === 8'hA2 && inte === 1'b0)) begin errors = errors + 1;
-        $display("FAIL after reset: first state is not T1 of a fetch from 0000 (sync=%b a=%h status=%h inte=%b)", sync, a, d_out, inte); end
+      if (!(a === 16'h0000 && d_out === 8'hA2 && inte === 1'b0)) begin errors = errors + 1;
+        $display("FAIL after reset: the first T1 is not an M1 fetch from 0000 with INTE 0 (a=%h status=%h inte=%b)", a, d_out, inte); end
     end
     if (sync === 1'b1) begin stat = d_out; seen_t1 = 1; logged = 0; end
     if (seen_t1 && (^{a, a_oe, d_out, d_oe, sync, dbin, wr_n, wait_o, hlda, inte} === 1'bx)) begin

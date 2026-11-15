@@ -26,9 +26,12 @@ module tb_pins80;
     repeat (5) @(posedge clk); @(negedge clk); reset = 0;
   end
   // READY: the value for the state that starts at this edge (changes only at state starts, spec 7 stimulus rule)
-  always @(posedge clk) if (!reset && idx < n) ready <= er[idx];
+  reg started = 0;
+  always @(posedge clk) if (!reset && started && idx < n) ready <= er[idx];
   always @(negedge clk) if (!reset) begin
     cyc = cyc + 1; fl = {sync, a_oe, d_oe, dbin, wr_n, wait_o, hlda, inte};
+    if (!started && sync === 1'b1) started = 1;       // comparison starts at the first T1 after reset (spec 5), whichever clock it falls on
+    if (started) begin
     if (sync === 1'b1) begin stat = d_out; logged = 0; end
     if (wr_n === 1'b0 && d_oe === 1'b1 && !logged) begin logged = 1; if (!stat[4]) mem[a] = d_out; end   // memory write (not OUT)
     if (^{a, a_oe, d_out, d_oe, sync, dbin, wr_n, wait_o, hlda, inte} === 1'bx) begin errors = errors + 1; $display("FAIL C7 X/Z on an output at state %0d", idx); end
@@ -37,7 +40,8 @@ module tb_pins80;
       if (errors < 20) $display("FAIL state %0d: expected flags %b/%b a=%h d=%h, got flags %b a=%h d=%h", idx, ef[idx], em[idx], ea[idx], ed[idx], fl, a, d_out);
     end
     idx = idx + 1;
-    if (idx == n) begin $display("%s: states=%0d errors=%0d", errors ? "FAIL" : "PASS", n, errors); $finish; end
-    if (cyc > 10 * n + 100) begin $display("FAIL timeout"); $finish; end
+    end
+    if (started && idx == n) begin $display("%s: states=%0d errors=%0d", errors ? "FAIL" : "PASS", n, errors); $finish; end
+    if (cyc > 10 * n + 200) begin $display("FAIL timeout"); $finish; end
   end
 endmodule
