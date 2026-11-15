@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """C8 (spec §8): random programs, RTL (i8080_system) vs ref/pins8080.py, every pin §4 compares, every
-state. Owner: Beru. First version: READY = 1, HOLD = 0, INT = 0; IN reads in_port_data = 5A.
+state. Owner: Beru. READY and INT random per the §7 stimulus rule (testbench-driven, model replays the log); HOLD not
+yet; IN reads in_port_data = 5A.
 
 The model mirrors i8080_system: 64 KiB RAM, the BDOS stub bytes at 0005h-001Eh (reads only, as the
 fixture does), IN returns 5A. Each program: 0000 JMP 0100; at 0100 the §5 preamble (LXI SP, LXI B/D/H,
@@ -61,6 +62,8 @@ def gen(rng):
         prog += [0x21, t & 0xFF, t >> 8, 0xE5]
     prog += [0x01, *pair(), 0x11, *pair(), 0x21, *pair(), 0xE5, 0xF1, 0x3E, r8()]
     while len(prog) < (CODE1 - CODE0) - 6:
+        if rng.random() < 0.02:
+            prog.append(0xFB)                          # extra EIs, so random INT is actually taken
         op = rng.choice(safe)
         n = length(op)
         if op in JUMPS:
@@ -81,15 +84,29 @@ def gen(rng):
     return mem
 
 
-def model_states(mem, nst):
+def model_states(mem, nst, inputs=None, vec=7):
+    """inputs: per-state (ready, int_req) recorded by the testbench, from the first T1 on."""
     ram = bytearray(mem)
     def rd(a):
         return STUB[a - 5] if 5 <= a <= 0x1E else ram[a]
     def wr(a, v):
         ram[a] = v
     c = R.CPU(read=rd, write=wr, inp=lambda port: IN_DATA)
-    g = P.PinModel(c).states()
+    if inputs:
+        get = lambda n, k: inputs[n][k] if n < len(inputs) else (1, 0)[k]
+        pm = P.PinModel(c, ready=lambda n: get(n, 0), int_req=lambda n: get(n, 1), int_vector=lambda n: vec)
+    else:
+        pm = P.PinModel(c)
+    g = pm.states()
     return [next(g) for _ in range(nst)]
+
+
+def recorded_inputs(pdir):
+    got = [l.split() for l in open(f"{pdir}/pins.txt")]
+    lead = 0
+    while lead < len(got) and got[lead][0] != "1":
+        lead += 1
+    return [(int(g[11]), int(g[12])) for g in got[lead:]]
 
 
 def fmt(p):
@@ -136,6 +153,7 @@ def main():
     ap.add_argument("--seed", type=int, default=1)
     ap.add_argument("--rtl", default=os.path.join(ROOT, "rtl"))
     ap.add_argument("--out", default=os.path.join(ROOT, "build", "c8"))
+    ap.add_argument("--stim", type=int, default=1, help="1: random READY/INT per the §7 rule (default); 0: none")
     a = ap.parse_args()
     progs = []
     for p in range(a.nprog):
@@ -147,18 +165,25 @@ def main():
     rtl = sorted(os.path.join(dp, f) for dp, _, fs in os.walk(a.rtl) for f in fs if f.endswith(".v"))
     vvp = f"{a.out}/c8.vvp"
     subprocess.run(["iverilog", "-g2012", "-o", vvp, *rtl, os.path.join(ROOT, "tests/random/c8/tb.sv")], check=True)
-    sim = subprocess.run(["vvp", "-n", vvp, f"+dir={a.out}", f"+nprog={a.nprog}", f"+nst={a.nst}"],
+    sim = subprocess.run(["vvp", "-n", vvp, f"+dir={a.out}", f"+nprog={a.nprog}", f"+nst={a.nst}",
+                          f"+stim={a.stim}", f"+seed={a.seed}", f"+vec={1 + a.seed % 7}"],
                          capture_output=True, text=True)
     if "DONE c8 tb" not in sim.stdout or "ERROR" in sim.stdout:
         print(sim.stdout[-2000:], sim.stderr[-2000:]); print("FAIL: simulator problems"); return 1
     bad = 0
     for p, mem in enumerate(progs):
-        err = compare(f"{a.out}/prog{p}", model_states(mem, a.nst))
+        d = f"{a.out}/prog{p}"
+        err = compare(d, model_states(mem, a.nst, recorded_inputs(d) if a.stim else None, 1 + a.seed % 7))
         if err:
             bad += 1
             if bad <= 8:
                 print(f"MISMATCH prog{p} (seed {a.seed + p}): {err}")
-    print(f"c8: seed={a.seed} programs={a.nprog} states={a.nst} mismatching_programs={bad}")
+    tw = ints = 0
+    for p in range(a.nprog):
+        for l in open(f"{a.out}/prog{p}/pins.txt"):
+            f = l.split(); tw += f[7] == "1" and f[8] == "0"; ints += f[0] == "1" and f[4] in ("23", "2b")
+    print(f"coverage: {tw} wait states (TW), {ints} interrupt acknowledges (INTA) across all programs")
+    print(f"c8: seed={a.seed} stim={a.stim} programs={a.nprog} states={a.nst} mismatching_programs={bad}")
     print("PASS" if bad == 0 else "FAIL")
     return 1 if bad else 0
 

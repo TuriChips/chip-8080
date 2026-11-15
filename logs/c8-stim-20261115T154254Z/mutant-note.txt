@@ -1,0 +1,4 @@
+RTL mutants (not committed), 10 programs x 20000 states with READY/INT stimulus (seed 1):
+  i8080_timing: READY ignored (never enters TW)          -> 10/10 programs mismatch
+  i8080_control: INT accepted without checking INTE      -> 10/10 programs mismatch
+  i8080_alu: ADD/ADC carry inverted (no stimulus, seed 100) -> 27/50 (logs/c8-20261115T*/mutant-note.txt)
