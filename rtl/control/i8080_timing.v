@@ -34,7 +34,7 @@ module i8080_timing (
     output wire       wait_o,
     output wire       hlda
 );
-    localparam [2:0] T1 = 3'd1, T2 = 3'd2, T3 = 3'd3, TW = 3'd6, TWH = 3'd7;
+    localparam [2:0] T0 = 3'd0, T1 = 3'd1, T2 = 3'd2, T3 = 3'd3, TW = 3'd6, TWH = 3'd7;
 
     reg [2:0] ts;
     reg [2:0] mc;
@@ -42,17 +42,19 @@ module i8080_timing (
     reg       frz;        // held and the cycle is finished: waiting for HOLD to fall
     reg       hold_pend;  // HOLD recognised in T2/TW of a write cycle; HLDA rises after T3
 
+    // tstate 0 = reset state (before the first T1): control keeps the pins at their reset values
     wire last_state = (ts == cyc_states) && (ts >= T3) && (ts <= 3'd5);
 
     always @(posedge clk) begin
         if (reset) begin
-            ts <= T1; mc <= 3'd1;
+            ts <= T0; mc <= 3'd1;
             held_r <= 1'b0; frz <= 1'b0; hold_pend <= 1'b0;
         end else if (frz) begin
             // Frozen at the end of a cycle (or in TWH): leave when HOLD falls.
             if (!hold) begin held_r <= 1'b0; frz <= 1'b0; end
         end else begin
             case (ts)
+                T0: ts <= T1;           // first clock after reset: reset state -> T1
                 T1: ts <= T2;
                 T2: begin
                     if (cyc_idle) ts <= T3;

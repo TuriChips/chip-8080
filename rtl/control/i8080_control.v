@@ -263,7 +263,7 @@ module i8080_control (
             default: ;
         endcase
         if (in_twh || pin_hold) begin aoe = 1'b0; doe = 1'b0; dbn = 1'b0; wrn = 1'b1; end
-        if (reset) begin aoe = 1'b0; doe = 1'b0; dbn = 1'b0; wrn = 1'b1; end
+        if (reset || tstate == 3'd0) begin aoe = 1'b0; doe = 1'b0; dbn = 1'b0; wrn = 1'b1; end
     end
     assign a_oe = aoe;
     assign d_oe = doe;
@@ -329,7 +329,6 @@ module i8080_control (
                 if (is_inx) begin sp_o = P_RPINC; end
                 if (is_dcx) begin sp_o = P_RPDEC; end
                 if (is_xchg) sp_o = P_XCHG;
-                if (is_pchl) sp_o = P_PCHL;
                 if (is_sphl) sp_o = P_SPHL;
                 if (is_push || is_call || (is_ccc && cond)) sp_o = P_SPDEC;
                 if (is_rst) begin
@@ -337,6 +336,7 @@ module i8080_control (
                     sp_o = P_SPDEC; wdata_sel = 3'd2; reg_wr_sel = R_Z; reg_we = 1'b1;
                 end
             end
+            if (is_pchl && tstate == T5) sp_o = P_PCHL;
             if (is_rst && tstate == T5) begin wdata_sel = 3'd4; reg_wr_sel = R_W; reg_we = 1'b1; end
         end
         3'd2: begin
