@@ -82,6 +82,8 @@ class Mach:
         if op == 'STC': s.f |= 1; return done([F], 1)
         if op == 'CMC': s.f ^= 1; return done([F], 1)
         if op == 'NOP': return done([F], 1)
+        if op in ('EI', 'DI'): return done([F], 1)           # INTE is not modelled here
+        if op == 'HLT': return done([F, ('HLTA', pc + 1, None, 3)], 1)   # F4, then the halt-acknowledge cycle: T1, T2, first TWH = 7 states (spec 6.2)
         if op == 'IN': p = num(a[0]); s.r['A'] = p ^ 0x5A; return done([F, ('R', pc + 1, None, 3), ('IN', p << 8 | p, None, 3)], 2)
         if op == 'OUT': p = num(a[0]); return done([F, ('R', pc + 1, None, 3), ('OUT', p << 8 | p, s.r['A'], 3)], 2)
         # --- arithmetic / logic
