@@ -76,7 +76,7 @@ def emit_case(prog, K):
     pins = run_flow(prog, K); name = f"int_{prog}_k{K}"
     open(f"{d}/{name}.asm", "w").write(asm_text(prog))
     with open(f"{d}/{name}.pins", "w") as f:
-        for fl, mask, a, dv, rdy in pins: f.write("%02X %02X %s %s %d\n" % (fl, mask, "xxxx" if a is None else "%04X" % a, "xx" if dv is None else "%02X" % dv, rdy))
+        for fl, mask, a, dv, rdy in pins: f.write("%02X %02X %s %s %d 0\n" % (fl, mask, "xxxx" if a is None else "%04X" % a, "xx" if dv is None else "%02X" % dv, rdy))
     ks.append((name, K))
 for K in (1, 2, 5, 13, 14, 20, 21, 25, 100, 301, 333): emit_case('inr', K)
 for K in (7 + 4 + 3 + 10 + 7 + 4 + 7 + 3, ): pass

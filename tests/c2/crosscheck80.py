@@ -15,7 +15,7 @@ rows = [l.split() for l in open(pins)]
 cpu = ref8080.CPU(bytes(img), inp=lambda p: p ^ 0x5A); model = pins8080.PinModel(cpu, ready=lambda n: int(rows[n][4]) if n < len(rows) else 1).states()
 bad = 0; n = 0
 for line in open(pins):
-    fl, mk, a, d, _r = line.split(); fl = int(fl, 16); mk = int(mk, 16); p = next(model); n += 1
+    fl, mk, a, d, _r, _h = line.split(); fl = int(fl, 16); mk = int(mk, 16); p = next(model); n += 1
     exp = dict(sync=fl >> 7 & 1, a_oe=fl >> 6 & 1, d_oe=fl >> 5 & 1, dbin=fl >> 4 & 1, wr_n=fl >> 3 & 1, wait_o=fl >> 2 & 1, hlda=fl >> 1 & 1, inte=fl & 1)
     bits = dict(sync=7, a_oe=6, d_oe=5, dbin=4, wr_n=3, wait_o=2, hlda=1, inte=0)
     diff = [k for k, v in exp.items() if mk >> bits[k] & 1 and getattr(p, k) is not None and getattr(p, k) != v]

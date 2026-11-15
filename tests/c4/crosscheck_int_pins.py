@@ -25,7 +25,7 @@ rows = [l.split() for l in open(pins)]; bad = 0
 bits = dict(sync=7, a_oe=6, d_oe=5, dbin=4, wr_n=3, wait_o=2, hlda=1, inte=0)
 for i, row in enumerate(rows):
     if i >= len(seq): bad += 1; print("model ended early at", i); break
-    fl, mk, a, d, _r = row; fl = int(fl, 16); mk = int(mk, 16); p = seq[i]; diff = []
+    fl, mk, a, d, _r, _h = row; fl = int(fl, 16); mk = int(mk, 16); p = seq[i]; diff = []
     for k, bt in bits.items():
         v = getattr(p, k)
         if mk >> bt & 1 and v is not None and v != (fl >> bt & 1): diff.append(k)
