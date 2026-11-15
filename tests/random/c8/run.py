@@ -4,7 +4,8 @@ state. Owner: Beru. First version: READY = 1, HOLD = 0, INT = 0; IN reads in_por
 
 The model mirrors i8080_system: 64 KiB RAM, the BDOS stub bytes at 0005h-001Eh (reads only, as the
 fixture does), IN returns 5A. Each program: 0000 JMP 0100; at 0100 the §5 preamble (LXI SP, LXI B/D/H,
-PUSH H, POP PSW, MVI A), then random code; no undocumented byte anywhere (§6).
+PUSH H, POP PSW, MVI A) and seeded returns, then random code kept inside 0100h-2100h; no undocumented
+byte anywhere (§6). See gen().
 Usage: tests/random/c8/run.py [--nprog N] [--nst STATES] [--seed S] [--rtl DIR]
 """
 import argparse, os, random, subprocess, sys
@@ -16,19 +17,67 @@ import pins8080 as P  # noqa: E402
 STUB = [0x79, 0xFE, 0x02, 0xCA, 0x11, 0x00, 0xFE, 0x09, 0xCA, 0x15, 0x00, 0xC9, 0x7B, 0xD3, 0x00, 0xC9,
         0x1A, 0xFE, 0x24, 0xC8, 0xD3, 0x00, 0x13, 0xC3, 0x15, 0x00]          # 0005h-001Eh (#31)
 IN_DATA = 0x5A
-EXCLUDED = R.UNDOCUMENTED | {0x76}                # HLT left out for now (halts the rest of the run)
+# HLT (halts the rest of the run) and RST 0 (restarts the program) are left out of the generator;
+# both are covered by the model selftest and by directed tests.
+EXCLUDED = R.UNDOCUMENTED | {0x76, 0xC7}
 FIELDS = "sync a_oe a d_oe d_out dbin wr_n wait_o hlda inte".split()
+CODE0, CODE1 = 0x0100, 0x2100                     # random code region
+JUMPS = {0xC3, 0xCD} | {0xC2 | (c << 3) for c in range(8)} | {0xC4 | (c << 3) for c in range(8)}
+
+
+def length(op):
+    if op in (0x01, 0x11, 0x21, 0x31, 0x22, 0x2A, 0x32, 0x3A) or op in JUMPS:
+        return 3
+    if (op & 0xC7) == 0x06 or (op & 0xC7) == 0xC6 or op in (0xD3, 0xDB):
+        return 2
+    return 1
 
 
 def gen(rng):
+    """0000 JMP 0100; RST 4-7 vectors hold RET (RST 1-3 land in the BDOS stub, which also returns);
+    at 0100 the §5 preamble plus 32 seeded return addresses, then random code that keeps jumps, calls
+    and most register-pair values inside the code region and ends with a JMP back into it. No
+    EXCLUDED byte anywhere, operands included (jumps land mid-instruction). Same ideas as acc4."""
     safe = [b for b in range(256) if b not in EXCLUDED]
     r8 = lambda: rng.choice(safe)
+
+    def r16(lo, hi):
+        while True:
+            t = rng.randrange(lo, hi)
+            if (t & 0xFF) not in EXCLUDED and (t >> 8) not in EXCLUDED:
+                return t
+
+    def pair():
+        t = r16(CODE0, CODE1) if rng.random() < 0.9 else r16(0, 65536)
+        return [t & 0xFF, t >> 8]
+
     mem = [0] * 65536
     mem[0:3] = [0xC3, 0x00, 0x01]
-    pre = [0x31, 0x00, 0xF0, 0x01, r8(), r8(), 0x11, r8(), r8(), 0x21, r8(), r8(), 0xE5, 0xF1, 0x3E, r8()]
-    mem[0x100:0x100 + len(pre)] = pre
-    for a in range(0x100 + len(pre), 0x2100):
-        mem[a] = r8()
+    for v in (0x20, 0x28, 0x30, 0x38):
+        mem[v] = 0xC9
+    prog = [0x31, 0x00, 0xF0]
+    for _ in range(32):
+        t = r16(CODE0, CODE1)
+        prog += [0x21, t & 0xFF, t >> 8, 0xE5]
+    prog += [0x01, *pair(), 0x11, *pair(), 0x21, *pair(), 0xE5, 0xF1, 0x3E, r8()]
+    while len(prog) < (CODE1 - CODE0) - 6:
+        op = rng.choice(safe)
+        n = length(op)
+        if op in JUMPS:
+            t = r16(CODE0, CODE1)
+            prog += [op, t & 0xFF, t >> 8]
+        elif op == 0x31:                             # LXI SP: keep the stack away from the code
+            t = r16(0xE000, 0xF000)
+            prog += [op, t & 0xFF, t >> 8]
+        elif op in (0x01, 0x11, 0x21):
+            prog += [op, *pair()]
+        else:
+            prog += [op] + [r8() for _ in range(n - 1)]
+    prog += [0] * ((CODE1 - CODE0) - 3 - len(prog))
+    t = r16(CODE0, CODE1 - 3)
+    prog += [0xC3, t & 0xFF, t >> 8]
+    mem[CODE0:CODE1] = prog
+    assert not EXCLUDED & set(prog)
     return mem
 
 
@@ -50,8 +99,21 @@ def fmt(p):
             "-" if p.d_out is None else "%02x" % p.d_out, b(p.dbin), b(p.wr_n), b(p.wait_o), b(p.hlda), b(p.inte)]
 
 
+RESET_ROW = ["0", "0", None, "0", None, "0", "1", "0", "0", "0"]   # §5 pins while reset = 1 (a, d_out: not compared)
+
+
 def compare(pdir, want):
     got = [l.split() for l in open(f"{pdir}/pins.txt")]
+    # §5: comparison starts at the first T1 after reset falls. The RTL may show reset-valued states
+    # before it (i8080_timing's reset state, chip-8080#34): at most 2, each with exactly the §5 pins.
+    lead = 0
+    while lead < len(got) and got[lead][0] != "1":
+        g = got[lead]
+        bad = [FIELDS[k] for k, v in enumerate(RESET_ROW) if v is not None and g[k] != v]
+        if bad or lead >= 2:
+            return f"state {lead} before the first T1: not reset-valued ({' '.join(g[:10])}; {bad or 'more than 2'})"
+        lead += 1
+    got = got[lead:]
     for i, (g, w) in enumerate(zip(got, want)):
         wf = fmt(w)
         if w.a_oe == 0: wf[2] = "-"                   # a not compared when a_oe = 0
@@ -62,7 +124,7 @@ def compare(pdir, want):
                 return f"state {i} ({w.state}): {name} rtl={g[k]} model={wf[k]}  | rtl {' '.join(g[:10])} | model {' '.join(wf)}"
         if g[10] != "0":
             return f"state {i} ({w.state}): bus_conflict = {g[10]}"
-    if len(got) < len(want):
+    if len(got) < len(want) - 2:
         return f"rtl dumped {len(got)} states, model {len(want)}"
     return None
 
@@ -70,7 +132,7 @@ def compare(pdir, want):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--nprog", type=int, default=20)
-    ap.add_argument("--nst", type=int, default=4000)
+    ap.add_argument("--nst", type=int, default=20000)
     ap.add_argument("--seed", type=int, default=1)
     ap.add_argument("--rtl", default=os.path.join(ROOT, "rtl"))
     ap.add_argument("--out", default=os.path.join(ROOT, "build", "c8"))
