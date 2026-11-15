@@ -9,8 +9,9 @@ module tb_sys80;
   reg clk = 0, reset = 1, ready = 1, hold = 0, int_req = 0;
   wire [15:0] a; wire a_oe, d_oe, sync, dbin, wr_n, wait_o, hlda, inte, out_strobe, bus_conflict, bdos_strobe, run_done;
   wire [7:0] d_out, bus, out_port, bdos_char;
+  wire [7:0] in_port_data = a[7:0] ^ 8'h5A;      // the input device: port p reads p ^ 5A (as in tb_prog80); `a` carries the port number in an input cycle
   i8080_system #(.INIT_FILE(`MEMFILE)) dut (.clk(clk), .reset(reset), .ready(ready), .hold(hold), .int_req(int_req), .int_vector(3'd1),
-    .in_port_data(8'h00), .a(a), .a_oe(a_oe), .d_out(d_out), .d_oe(d_oe), .sync(sync), .dbin(dbin), .wr_n(wr_n), .wait_o(wait_o),
+    .in_port_data(in_port_data), .a(a), .a_oe(a_oe), .d_out(d_out), .d_oe(d_oe), .sync(sync), .dbin(dbin), .wr_n(wr_n), .wait_o(wait_o),
     .hlda(hlda), .inte(inte), .bus(bus), .out_port(out_port), .out_strobe(out_strobe), .bus_conflict(bus_conflict),
     .bdos_char(bdos_char), .bdos_strobe(bdos_strobe), .run_done(run_done));
   always #5 clk = ~clk;

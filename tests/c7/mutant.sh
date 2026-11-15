@@ -7,7 +7,7 @@
 set -uo pipefail
 cd "$(git rev-parse --show-toplevel)"
 python3 tests/c1/gen_xfer.py build/gen/c1 >/dev/null; mkdir -p build/c7; ok=0
-P=build/gen/c1/xfer_s1; python3 tests/asm80.py $P.asm build/c7/mut.hex
+P=build/gen/c1/xfer_s1; sed '0,/\.org 0/s//.org 0\n        JMP 256\n        .org 256/' $P.asm > build/c7/mut.asm; python3 tests/asm80.py build/c7/mut.asm build/c7/mut.hex
 try() { # name file sed-expr mode(conflict|xz)
   local d=build/c7/mut_$1; rm -rf "$d"; mkdir -p "$d"; cp -r rtl "$d/"; sed -i "$3" "$d/rtl/$2"
   cmp -s "rtl/$2" "$d/rtl/$2" && { echo "mutant $1: sed changed nothing"; ok=1; return; }
