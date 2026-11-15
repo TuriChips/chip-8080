@@ -135,4 +135,32 @@ for seed, wm, hm in ((1, False, False), (2, False, False), (3, True, False), (4,
     with open(f"{d}/pins_s{seed}.pins", "w") as f:
         for fl, mask, a, dv, rdy, hld in pins:
             f.write("%02X %02X %s %s %d %d\n" % (fl, mask, "xxxx" if a is None else "%04X" % a, "xx" if dv is None else "%02X" % dv, rdy, hld))
+# --- C6: reset during hold / wait / halt / hold-from-halt (spec 5: reset abandons the cycle, pins while reset = 1, then a fresh run from 0000)
+RESET_ROW = (WRN, 0xFF, None, None, 1, 0)       # a_oe 0, d_oe 0, sync 0, dbin 0, wr_n 1, wait 0, hlda 0, inte 0
+def reset_case(name, lines, rows, R, M):
+    """rows = the normal run; reset starts in state R (HOLD/READY as in that row), 5 clocks; then the run restarts from its first T1 (M states)."""
+    f, m, a, d, rdy, hld = rows[R]
+    pre = rows[:R] + [(0, 0, None, None, rdy, hld)] + [(WRN, 0xFF, None, None, rdy, hld)] * 4       # state R: not compared; then the Spec-5 reset pins
+    allr = pre + rows[:M]
+    open(f"{d_out}/{name}.asm", "w").write("\n".join(["; C6 pins " + name] + lines) + "\n")
+    open(f"{d_out}/{name}.plus", "w").write(f"+RESET_AT={R}\n")
+    open(f"{d_out}/{name}.pins", "w").write("".join("%02X %02X %s %s %d %d\n" % (fl, mask, 'xxxx' if a_ is None else '%04X' % a_, 'xx' if dv is None else '%02X' % dv, rdy_, hld_) for fl, mask, a_, dv, rdy_, hld_ in allr))
+d_out = d
+prog = ["LXI SP,0x4800", "MVI A,5", "OUT 1", "NOP", "NOP"]
+def rows_for(hold=None, waits=0):
+    m = Mach(0); rows = []
+    for t in prog:
+        for c in m.run(t):
+            if t == "OUT 1" and c[0] == 'OUT' and hold: rows += hold_states(c, hold, waits)
+            else: rows += states(c, waits if (t == "OUT 1" and c[0] == 'OUT') else 0)
+    return rows
+src_lines = ["        .org 0"] + ["        " + t for t in prog]
+rh = rows_for(hold=6); idx = [i for i, r in enumerate(rh) if r[0] & HLDA]
+reset_case("pins_r1_hold", src_lines, rh, idx[2], len(rh))           # reset in the 3rd state with hlda = 1
+rw = rows_for(waits=2); iw = [i for i, r in enumerate(rw) if r[0] & WAIT]
+reset_case("pins_r2_wait", src_lines, rw, iw[0], len(rw))            # reset in the first wait state
+lh, rhh = halt_hold_pins(); twh = [i for i, r in enumerate(rhh) if r[0] == (WAIT | WRN)]
+reset_case("pins_r3_halt", ["        .org 0"] + lh, rhh, twh[3], len(rhh))      # reset in a TWH state
+hs = [i for i, r in enumerate(rhh) if r[0] & HLDA]
+reset_case("pins_r4_halthold", ["        .org 0"] + lh, rhh, hs[1], len(rhh))   # reset in a Hold state taken from the halt state
 print("wrote pins programs")
