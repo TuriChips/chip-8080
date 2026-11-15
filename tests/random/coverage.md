@@ -28,7 +28,7 @@ coverage logs.
   model selftest and by Titus's directed tests.
 
 ## Gaps
-1. **Gate-level variant** (§8): waits for Leo's synthesized netlist (#22).
+None. The gate-level variant (§8, #59) runs on Leo's sky130 netlist (#53): `tests/random/gl_sky130.sh`, 300 programs × 7,000 states plus 61 reset programs × 14,000 states, 0 mismatches; `gl_def_check.py` confirms the routed DEF is that netlist (`logs/c8-gl-sky130-20261115T230723Z/run.log`).
 
 Closed: the C8 scale target, **10,000 programs × 1,101 instructions on average, 0 mismatches** (`logs/c8-full7000-20261115T201606Z/SUMMARY.md`); mid-run reset (`run_resets.py`), positive `bus_conflict` (`c8/conflict_check.py`). Closed by the full-scale run: per-program depth (now many short programs), the three missing
 condition-code combinations, and HOLD during an INTA taken from halt.

@@ -1,0 +1,21 @@
+netlist: synth/sky130/i8080_sky130.v from PR #53 (022863b), sha256 4a7d084c79b06437
+base: main ef9399b + this branch; Icarus Verilog version 12.0 (stable) ()
+cmd: tests/random/gl_sky130.sh 300 7000 1
+coverage: 102485 wait states (TW), 797 interrupt acknowledges (INTA), 70167 states with HLDA = 1, 108 halts (HLTA), 107 wake-ups by INT (INTA 2B), 1657 held states taken from halt
+stopped early (self-modified code reached an undocumented byte, §6): 4 programs, after [1908, 2061, 2175, 5068] states
+c8: seed=1 stim=1 programs=300 states=7000 mismatching_programs=0
+PASS
+resets: 271 (266 mid-instruction), memory writes rolled back: 115
+stopped early: 1 programs reached a self-written undocumented byte (§6), 11 had overwritten their reset vector or preamble before a reset (§5)
+c8 resets: seed=1001 programs=61 states=14000 mismatching_programs=0
+PASS
+PASS gate-level sky130 C8
+
+real	5m51.917s
+user	5m49.250s
+sys	0m1.266s
+
+cmd: tests/random/gl_def_check.py (DEF from PR #53)
+netlist: 2340 cells, 2353 nets with 2+ connections, 45 port bits
+DEF: 2865 components (525 tap/fill), 2353 signal nets with 2+ connections, 45 pins
+PASS gl_def_check: DEF matches the netlist
