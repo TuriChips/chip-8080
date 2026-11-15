@@ -1,0 +1,21 @@
+FAIL state 0: expected flags 11101000/11111111 a=0000 d=a2, got flags 11101000 a=0001 d=82
+FAIL state 1: expected flags 01011000/11111111 a=0000 d=xx, got flags 01011000 a=0001 d=82
+FAIL state 2: expected flags 01011000/11111111 a=0000 d=xx, got flags 01011000 a=0001 d=82
+FAIL state 3: expected flags 01001000/11011111 a=0000 d=xx, got flags 11101000 a=0002 d=82
+FAIL state 4: expected flags 11101000/11111111 a=0001 d=82, got flags 01011000 a=0002 d=82
+FAIL state 5: expected flags 01011000/11111111 a=0001 d=xx, got flags 01011100 a=0002 d=82
+FAIL state 6: expected flags 01011100/11111111 a=0001 d=xx, got flags 01011100 a=0002 d=82
+FAIL state 7: expected flags 01011100/11111111 a=0001 d=xx, got flags 01011100 a=0002 d=82
+FAIL state 8: expected flags 01011000/11111111 a=0001 d=xx, got flags 01011000 a=0002 d=82
+FAIL state 9: expected flags 11101000/11111111 a=0002 d=82, got flags 11101000 a=0003 d=a2
+FAIL state 10: expected flags 01011000/11111111 a=0002 d=xx, got flags 01011000 a=0003 d=a2
+FAIL state 11: expected flags 01011100/11111111 a=0002 d=xx, got flags 01011100 a=0003 d=a2
+FAIL state 12: expected flags 01011100/11111111 a=0002 d=xx, got flags 01011100 a=0003 d=a2
+FAIL state 13: expected flags 01011000/11111111 a=0002 d=xx, got flags 01011000 a=0003 d=a2
+FAIL state 14: expected flags 11101000/11111111 a=0003 d=a2, got flags 01001000 a=0003 d=a2
+FAIL state 15: expected flags 01011000/11111111 a=0003 d=xx, got flags 11101000 a=0004 d=82
+FAIL state 16: expected flags 01011000/11111111 a=0003 d=xx, got flags 01011000 a=0004 d=82
+FAIL state 17: expected flags 01001000/11011111 a=0003 d=xx, got flags 01011000 a=0004 d=82
+FAIL state 18: expected flags 11101000/11111111 a=0004 d=82, got flags 11101000 a=0005 d=a2
+FAIL: states=14678 errors=14661
+tb/tb_pins80.sv:44: $finish called at 146860000 (1ps)

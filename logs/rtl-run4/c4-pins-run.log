@@ -1,0 +1,16 @@
+int_inr_k1 (INT_AT=1): PASS: states=662 errors=0
+int_inr_k2 (INT_AT=2): PASS: states=662 errors=0
+int_inr_k5 (INT_AT=5): PASS: states=662 errors=0
+int_inr_k13 (INT_AT=13): PASS: states=662 errors=0
+int_inr_k14 (INT_AT=14): PASS: states=662 errors=0
+int_inr_k20 (INT_AT=20): PASS: states=662 errors=0
+int_inr_k21 (INT_AT=21): PASS: states=662 errors=0
+int_inr_k25 (INT_AT=25): PASS: states=662 errors=0
+int_inr_k100 (INT_AT=100): PASS: states=662 errors=0
+int_inr_k301 (INT_AT=301): PASS: states=662 errors=0
+int_inr_k333 (INT_AT=333): PASS: states=662 errors=0
+int_halt_k38 (INT_AT=38): PASS: states=125 errors=0
+int_halt_k39 (INT_AT=39): PASS: states=126 errors=0
+int_halt_k44 (INT_AT=44): PASS: states=131 errors=0
+int_halt_k67 (INT_AT=67): PASS: states=154 errors=0
+c4 pins: 15 runs, 0 failing

@@ -1,0 +1,1 @@
+Local merge of PR #31 (head f6ebfea), #32 (head 70b69e6, with pair_op 13) and #35 (head 703b922, i8080_mem); testbenches exclude i8080_system.v. 37 C1/C5 programs PASS (incl. branch, 527 entries), C2 pins_s1/s2/s3 PASS (12,626 / 12,868 / 14,678 states, seed 3 with READY wait states), C6 reset_mid at 16 reset clocks PASS.
