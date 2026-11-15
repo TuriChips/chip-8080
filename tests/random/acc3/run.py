@@ -46,7 +46,7 @@ def gen(rng):
             if (t & 0xFF) not in EXCLUDED and (t >> 8) not in EXCLUDED:
                 return t
     def pair():                                # register-pair value: half point into the cartridge, so a
-        t = r16(0, CART) if rng.random() < 0.5 else r16(0, 65536)   # RET/PCHL of a pushed pair stays in code
+        t = r16(0, CART) if rng.random() < 0.9 else r16(0, 65536)   # RET/PCHL of a pushed pair stays in code
         return [t & 0xFF, t >> 8]
     # Layout like a real system: 0000 JMP to the preamble at 0040; each RST vector 0008..0038 holds
     # a RET, so a random RST n acts as a call and returns (without this, RSTs jumping back into the
@@ -54,15 +54,15 @@ def gen(rng):
     prog = [0xC3, 0x40, 0x00] + [0x00] * 5
     for n in range(1, 8):
         prog += [0xC9] + [0x00] * 7
-    # Stack seeded with 4 cartridge addresses, so an early RET/Rcc lands in code (with an empty stack
-    # it read 0000 from unmapped space and restarted the program, another tiny loop).
+    # Stack seeded with 32 cartridge addresses, so RET/Rcc lands in code (with an empty stack it read
+    # 0000 from unmapped space and restarted the program, replaying the same path: another loop).
     prog += [0x31, 0x00, 0xF4]
-    for _ in range(4):
+    for _ in range(32):
         t = r16(0x0040, CART)
         prog += [0x21, t & 0xFF, t >> 8, 0xE5]
     prog += [0x01, *pair(), 0x11, *pair(), 0x21, *pair(), 0xE5, 0xF1, 0x3E, r8()]
     ops = [b for b in range(256) if b not in EXCLUDED]
-    while len(prog) < CART - 3:
+    while len(prog) < CART - 6:
         op = rng.choice(ops)
         n = length(op)
         if op in JUMPS:
@@ -78,7 +78,9 @@ def gen(rng):
             prog += [op, t & 0xFF, t >> 8]
         else:
             prog += [op] + [r8() for _ in range(n - 1)]
-    prog += [0] * (CART - len(prog))
+    prog += [0] * (CART - 3 - len(prog))
+    t = r16(0x0040, CART - 3)                  # the last bytes jump back into the code, so execution
+    prog += [0xC3, t & 0xFF, t >> 8]           # doesn't run off the cartridge into unmapped space
     assert not EXCLUDED & set(prog), "excluded byte in the cartridge"
     return prog
 
