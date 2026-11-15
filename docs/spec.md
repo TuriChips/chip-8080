@@ -1,6 +1,6 @@
 # Spec: Intel 8080 (Chip #2), DRAFT
 
-Status: **DRAFT v0, not normative.** Moved from `TuriChips/turichips` (#23, #26, both approved by Sai) to start Chip #2 (Sai, 2026-11-15, after the 4004 release). It becomes **v1** when every **[check]** item is confirmed against the datasheet (§10) and Sai signs it off. Until then, work that depends on an open [check] item waits; everything else may start.
+Status: **v1 candidate, waiting for Sai's sign-off (chip-8080#5).** Moved from `TuriChips/turichips` (#23, #26, both approved by Sai) to start Chip #2 (Sai, 2026-11-15, after the 4004 release). It becomes **v1** when every **[check]** item is confirmed against the datasheet (§10) and Sai signs it off. Until then, work that depends on an open [check] item waits; everything else may start.
 
 Facts marked **[check]** are from memory of the 8080 documentation and must be read from the page before this is normative. Choices that are ours, not Intel's, are marked *Decision*.
 
