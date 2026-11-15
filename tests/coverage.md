@@ -33,14 +33,14 @@ Spec: docs/spec.md (v1). Status per row: **done** (test written and passing, log
 | 00 001 111 | RRC | tests/c1 `rrc (rotate test)` | done (PASS, logs/rtl-run1) |
 | 00 010 111 | RAL | tests/c1 `ral (rotate test)` | done (PASS, logs/rtl-run1) |
 | 00 011 111 | RAR | tests/c1 `rar (rotate test)` | done (PASS, logs/rtl-run1) |
-| 11 000 011 b2 b3 | JMP | | todo |
-| 11 CCC 010 b2 b3 | Jcc | | todo |
-| 11 001 101 b2 b3 | CALL | | todo |
-| 11 CCC 100 b2 b3 | Ccc | | todo |
-| 11 001 001 | RET | | todo |
-| 11 CCC 000 | Rcc | | todo |
-| 11 NNN 111 | RST n | | todo |
-| 11 101 001 | PCHL | | todo |
+| 11 000 011 b2 b3 | JMP | tests/c1 `branch` | done (PASS, logs/rtl-run2) |
+| 11 CCC 010 b2 b3 | Jcc | tests/c1 `branch` | done (PASS, logs/rtl-run2) |
+| 11 001 101 b2 b3 | CALL | tests/c1 `branch` | done (PASS, logs/rtl-run2) |
+| 11 CCC 100 b2 b3 | Ccc | tests/c1 `branch` | done (PASS, logs/rtl-run2) |
+| 11 001 001 | RET | tests/c1 `branch` | done (PASS, logs/rtl-run2) |
+| 11 CCC 000 | Rcc | tests/c1 `branch` | done (PASS, logs/rtl-run2) |
+| 11 NNN 111 | RST n | tests/c1 `branch` | done (PASS, logs/rtl-run2) |
+| 11 101 001 | PCHL | tests/c1 `branch` | done (PASS, logs/rtl-run2) |
 | 11 011 011 b2 | IN | tests/c1 `xfer_s1..3 (random)` | done (PASS, logs/rtl-run1) |
 | 11 010 011 b2 | OUT | tests/c1 `xfer_s1..3 (random)` | done (PASS, logs/rtl-run1) |
 | 00 RP0 001 b2 b3 | LXI rp | tests/c1 `xfer_s1..3 (random)` | done (PASS, logs/rtl-run1) |
@@ -64,18 +64,18 @@ Spec: docs/spec.md (v1). Status per row: **done** (test written and passing, log
 | 00 101 010 b2 b3 | LHLD | tests/c1 `xfer_s1..3 (random)` | done (PASS, logs/rtl-run1) |
 | 11 111 011 | EI | | todo |
 | 11 110 011 | DI | | todo |
-| 00 000 000 | NOP | | todo |
+| 00 000 000 | NOP | tests/c1 `pins_s1..3 (every pin of NOP's fetch)` | done (PASS, logs/rtl-run2) |
 
 ## §8 behaviours
 
 | ID | Behaviour | Test | Status |
 |---|---|---|---|
-| C1 | Every opcode: registers, memory and all five flags exactly per §6 | (the rows above) | todo |
-| C2 | Pin timing per §4 for every machine-cycle type, incl. the status byte at SYNC | `tests/c2/gen_pins80.py` (3 seeded programs, ~12,600-14,700 states each, seed 3 with 1-2 READY wait states in a quarter of the cycles: fetch with 4 and 5 states, memory/stack read and write incl. XTHL's 5-state write, input, output, DAD's idle cycles, taken and not-taken Jcc/Ccc/Rcc) + `tb/tb_pins80.sv`; not yet run (no RTL). HOLD, halt, interrupt-acknowledge cycles (types 8-10): C3/C4 | partial |
+| C1 | Every opcode: registers, memory and all five flags exactly per §6 | (the rows above) | partial: all rows done except EI, DI, HLT |
+| C2 | Pin timing per §4 for every machine-cycle type, incl. the status byte at SYNC | `tests/c2/gen_pins80.py` (PASS on the RTL, logs/rtl-run2: 3 seeded programs, 12,626 / 12,868 / 14,678 states, seed 3 with 1-2 READY wait states in a quarter of the cycles: fetch with 4 and 5 states, memory/stack read and write incl. XTHL's 5-state write, input, output, DAD's idle cycles, taken and not-taken Jcc/Ccc/Rcc) + `tb/tb_pins80.sv`; not yet run (no RTL). HOLD, halt, interrupt-acknowledge cycles (types 8-10): C3/C4 | partial |
 | C3 | READY / wait states, HOLD / HLDA at every legal point | READY wait states at every cycle type: `gen_pins80.py` seed 3 (agrees with Beru's pin model, 0 differences). HOLD/HLDA: not yet | partial |
 | C4 | Interrupts: EI after the next instruction, RST via INTA, INT while halted | | todo |
-| C5 | DAA and AC in every case | | todo |
-| C6 | Reset | `tests/c6/reset_mid` via `tests/c6/run.sh` (reset lands on 16 consecutive clocks mid-run, incl. mid-instruction; reset pins of spec §5; INTE cleared; first state after reset is T1 of a fetch from 0000; program restarts). Not yet: reset during HOLD / halt / a wait state | partial (not yet run: no RTL) |
+| C5 | DAA and AC in every case | tests/c1 `daa`: all 256 A × CY × AC (1024 cases, flags included); the DAA ANA/ANI/INR/DCR AC cases are in the alu_ and inr/dcr programs | done (PASS, logs/rtl-run2; model agrees with Beru's ref, #26/#27) |
+| C6 | Reset | `tests/c6/reset_mid` via `tests/c6/run.sh` (reset lands on 16 consecutive clocks mid-run, incl. mid-instruction; reset pins of spec §5; INTE cleared; first state after reset is T1 of a fetch from 0000; program restarts). Not yet: reset during HOLD / halt / a wait state | partial (PASS, logs/rtl-run2; reset during HOLD / halt / a wait state not yet) |
 | C7 | No X/Z on any output; no bus conflict, with a mutant and the positive `bus_conflict` case (two drivers on) | | todo |
 | C8 | Random programs vs the reference model | Beru | n/a |
 
