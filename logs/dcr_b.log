@@ -1,3 +1,0 @@
-WARNING: tb/tb_prog80.sv:27: $readmemh(build/gen/c1/dcr_b.exp): Not enough words in the file for the requested range [0:65535].
-PASS: trace=2048 expected=2048 errors=0
-tb/tb_prog80.sv:63: $finish called at 962800000 (1ps)

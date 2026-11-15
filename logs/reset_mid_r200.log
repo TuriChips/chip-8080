@@ -1,4 +1,0 @@
-WARNING: tb/tb_prog80.sv:27: $readmemh(tests/c6/reset_mid.exp): Not enough words in the file for the requested range [0:65535].
-FAIL after reset: first state is not T1 of a fetch from 0000 (sync=0 a=0000 status=a2 inte=0)
-FAIL: trace=2 expected=2 errors=1
-tb/tb_prog80.sv:63: $finish called at 2360000 (1ps)
