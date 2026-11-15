@@ -138,8 +138,9 @@ class PinModel:
         """Yield Pins for every state, forever (TWH while halted with no accepted interrupt)."""
         c = self.cpu
         while True:
-            if c.halted and not (c.int_req is not None and c.inte):
-                # HOLD sampled at the closing edge of each TWH / Hold state (#39): next state Hold or TWH
+            # halt: at each TWH / Hold closing edge the CPU tests RESET, then HOLD, then INT·INTE
+            # (Figure 2-12, p.2-14; chip-8080#45): HOLD wins over a pending INT
+            if c.halted and (self.hold(self.n - 1) or not (c.int_req is not None and c.inte)):
                 pins = HOLD(c.inte) if self.hold(self.n - 1) else TWH(c.inte)
                 self.sample_int(self.n, pins)            # accepted -> INTA from the next state
                 self.n += 1
@@ -348,6 +349,14 @@ def selftest():
     pm = PinModel(c, hold=lambda n: 1 if 5 <= n < 9 else 0, int_req=lambda n: 1 if 6 <= n < 9 else 0)
     g = pm.states()
     check("INT ignored in HOLD", [x.d_out for x in [next(g) for _ in range(17)] if x.state == "T1"], [0xA2] * 4)
+
+    # halt with HOLD and INT at the same TWH edge: HOLD wins, back to TWH when HOLD falls, then INTA
+    # (#45). EI; HLT: first TWH at state 10; HOLD and INT high there; HOLD seen low at the end of 11
+    c = R.CPU(bytes([0xFB, 0x76])); c.sp = 0x8000
+    g = PinModel(c, hold=lambda n: 1 if n == 10 else 0, int_req=lambda n: 1 if n >= 10 else 0).states()
+    p = [next(g) for _ in range(14)]
+    check("HOLD wins in halt", [x.state for x in p[10:]], ["TWH", "HOLD", "TWH", "T1"])
+    check("then INTA while halted", p[13].d_out, 0x2B)
 
     # reset pins (§5)
     check("reset pins", RESET_PINS, Pins("RESET", 0, 0, None, 0, None, 0, 1, 0, 0, 0))

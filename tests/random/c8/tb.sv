@@ -44,6 +44,8 @@ module tb;
         end else if (stim && wait_o === 1'b1 && a_oe === 1'b1) begin
           ready = ($urandom % 100) >= 50;                   // each TW: 50% another wait
         end
+        // §7 (#45): INT may also change on the edge that starts a TWH (wait_o with buses off, not held)
+        if (stim && wait_o === 1'b1 && a_oe === 1'b0 && hlda !== 1'b1 && !int_req) int_req = ($urandom % 100) < 20;
         // §7 (#39): HOLD may also change in any state while hlda = 1 or in TWH (wait_o with buses off)
         if (stim && (hlda === 1'b1 || (wait_o === 1'b1 && a_oe === 1'b0))) begin
           if (hold) hold = ($urandom % 100) >= 30;          // held: released with 30% per state
