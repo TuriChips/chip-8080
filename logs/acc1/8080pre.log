@@ -1,0 +1,5 @@
+main commit: fddf1082a0caf1d3422874c1a3d70b82ecbaf8a7
+8080 Preliminary tests complete
+RUN DONE after 9229 clocks, bus_conflict seen 0 times
+- tests/acc1/tb_cpm.sv:27: Verilog $finish
+PASS: 8080PRE completed
