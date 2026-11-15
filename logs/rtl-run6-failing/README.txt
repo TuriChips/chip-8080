@@ -1,0 +1,1 @@
+C3 HOLD (gen_pins80.py seed 4, 12,634 states with HOLD in a fifth of the bus cycles) on a local merge of PR #31 (z31 7a07af6), #32 (70b69e6), #35 (703b922): 130 mismatching states of 12,634, in two groups, see the chip-8080 issue for Zura. Seeds 1-3 still PASS.
