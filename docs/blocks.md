@@ -55,8 +55,9 @@ All blocks are synchronous to the single rising-edge `clk` (one clock per T stat
 | `alu_pop_f` | out | 1 | To ALU `pop_f` (POP PSW) (#28) |
 | `tmp` | out | 8 | The TMP latch: `d_in` held from T3 of a read, for INR/DCR M and MVI M write-back (#28) |
 | `rst_vec` | out | 3 | NNN of RST / the INTA instruction, for `wdata_sel` 2 |
+| `a_hold` | out | 1 | High in the hold-entry state of a 3-state write: `i8080` then drives `a` from a register `a_q` (the previous state's address), because SP/PC/WZ have already moved at the end of T3 and spec §4 holds `a` there (Zura, #40) |
 | `reg_rd_sel`, `reg_wr_sel`, `reg_we` | out | 4, 4, 1 | 8-bit register file access, codes in §2a |
-| `wdata_sel` | out | 3 | Source of regs `wdata` (mux in `i8080`): 0 `d_in`, 1 ALU `result`, 2 `{2'b00, rst_vec, 3'b000}` (RST vector), 3 `a_out`; 4–7 reserved (give 00) |
+| `wdata_sel` | out | 3 | Source of regs `wdata` (mux in `i8080`): 0 `d_in`, 1 ALU `result`, 2 `{2'b00, rst_vec, 3'b000}` (RST vector), 3 `a_out`, **4 zero** (RST's W ← 0); 5–7 reserved (give 00) |
 | `rp_sel` | out | 2 | Register pair for `pair_op` 4, 5, 12: 00 BC, 01 DE, 10 HL, 11 SP |
 | `pair_op` | out | 4 | 16-bit op on regs, codes in §2a |
 
