@@ -1,6 +1,6 @@
 # Spec: Intel 8080 (Chip #2), DRAFT
 
-Status: **v1 candidate, waiting for Sai's sign-off (chip-8080#5).** Moved from `TuriChips/turichips` (#23, #26, both approved by Sai) to start Chip #2 (Sai, 2026-11-15, after the 4004 release). It becomes **v1** when every **[check]** item is confirmed against the datasheet (§10) and Sai signs it off. Until then, work that depends on an open [check] item waits; everything else may start.
+Status: **v1, signed off by Sai** (chip-8080#5, 2026-11-15), with later changes each signed off by Sai (#25, #27, #40, and this file's history). Moved from `TuriChips/turichips` (#23, #26).
 
 Facts marked **[check]** are from memory of the 8080 documentation and must be read from the page before this is normative. Choices that are ours, not Intel's, are marked *Decision*.
 
@@ -297,7 +297,7 @@ Licences checked 2026-11-15 (chip-8080#1). Same rule as the 4004's Busicom test:
    - They run under CP/M. `i8080_system` provides a minimal BDOS stub, our own code, in the testbench: the program loads at 0100h, `CALL 5` with C = 2 (print char in E) and C = 9 (print `$`-terminated string at DE) prints to the log, and a jump to 0000h ends the run. Pass = the program's own "ERROR" lines are absent and its final OK message is printed.
    - **Run length:** the full 8080EXM is on the order of 10⁹ instructions. It must run on Verilator (not Icarus), and a CI run may take the whole exerciser only nightly. Per-push CI runs 8080PRE plus a named subset. The release needs one full 8080EXM pass with its log.
 2. **Excluded for licence reasons:** TST8080 (Microcosm Associates, the "Kelly Smith test") and CPUTEST (SuperSoft Associates, © 1981). No licence or permission found, so they're treated as copyrighted. Reopen only with explicit terms.
-3. **Example programs from the 8080 User's Manual** (1975), typed in from the page images, with expected results from the manual's text where it gives them, otherwise from independent arithmetic, as for the 4004's acceptance test 2.
+3. **Worked example programs from Intel's manuals**, typed in from the page images, with expected results from the manual's text where it gives them, otherwise from independent arithmetic, as for the 4004's acceptance test 2. **Source:** the *8080/8085 Assembly Language Programming Manual* (the "ALP manual" cited in §3 and §6), which has complete worked programs. The User's Manual (98-153B) was the first choice, but its text layer has no complete program with expected results, only I/O address formats and opcode tables (Homer, chip-8080#14). Homer lists the candidate programs with their page numbers on chip-8080#14, and Igris picks the set there. At least 3 programs, covering between them decimal arithmetic (DAA), a subroutine with CALL/RET and the stack, and a loop over memory. Programs that use 8085-only instructions (RIM, SIM) are excluded.
 4. **Instruction-level comparison against an independent existing 8080 emulator.** Beru chooses it (MAME's i8080 core, BSD-3-Clause, is the first candidate, as for the 4004), and records the choice and licence in `ref/README.md`.
 
 ## 10. Datasheet check
