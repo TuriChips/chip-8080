@@ -14,10 +14,13 @@ endif
 include $(TC)/chip.mk
 
 # Nightly: the full 8080EXM on Verilator (too long for every PR, spec section 9).
-# Contract: tests/acc1/run_full.sh (Homer) fetches the pinned exerciser, runs it, writes
-# logs/nightly/8080exm.log and exits 0 only on a full pass. Until it exists this is a no-op.
+# tests/acc1/run_full.sh (Homer) fetches the pinned exerciser, runs it, writes
+# logs/nightly/8080exm.log; exit 0 = full pass, 2 = not run, anything else = fail.
+# bash + pipefail so the script's exit code survives `| tee` (make's /bin/sh is dash).
 .PHONY: nightly
+nightly: SHELL := /bin/bash
+nightly: .SHELLFLAGS := -o pipefail -c
 nightly:
 	@mkdir -p logs/nightly
-	@if [ -x tests/acc1/run_full.sh ]; then tests/acc1/run_full.sh 2>&1 | tee logs/nightly/run.log; exit $${PIPESTATUS[0]}; \
-	else echo "nightly: tests/acc1/run_full.sh not there yet (Homer), nothing run" | tee logs/nightly/run.log; fi
+	@if [ -x tests/acc1/run_full.sh ]; then tests/acc1/run_full.sh 2>&1 | tee logs/nightly/run.log; \
+	else echo "nightly: tests/acc1/run_full.sh is missing" | tee logs/nightly/run.log; exit 1; fi
