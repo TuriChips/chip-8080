@@ -39,9 +39,14 @@ def dcr(r, f):                      # r + FF; AC = carry out of bit 3 of r[3:0] 
     v = (r - 1) & 255; s, z, p = szp(v)
     return v, mkf(s, z, 1 if (r & 15) + 15 > 15 else 0, p, cy_of(f))
 
-def daa(a, f):
+def daa(a, f, carry1=False):
+    """Spec 6 DAA, literally: step 1 adds 6 to A when low nibble > 9 or AC; step 2 adds 0x60 when the high nibble
+    (after step 1) > 9 or CY. carry1=True is the variant where step 1's carry out of bit 7 also sets CY, so step 2 fires
+    (needed for A in FA..FF; see the open question for Igris in chip-8080: the literal text gives a wrong decimal sum there)."""
     cy = f & 1; ac = (f >> 4) & 1
-    if (a & 15) > 9 or ac: t = a + 6; ac2 = 1 if (a & 15) + 6 > 15 else 0; a = t & 255
+    if (a & 15) > 9 or ac:
+        t = a + 6; ac2 = 1 if (a & 15) + 6 > 15 else 0; a = t & 255
+        if carry1 and t > 255: cy = 1
     else: ac2 = 0
     cy2 = cy
     if (a >> 4) > 9 or cy: t = a + 0x60; cy2 = 1 if (t >> 8) or cy else 0; a = t & 255   # CY = CY_in OR carry out (Decision)
@@ -66,4 +71,18 @@ if __name__ == '__main__':
     assert inr(0x0F, 0)[1] >> 4 & 1 == 1 and inr(0x0E, 0)[1] >> 4 & 1 == 0 and inr(0xFF, 1)[1] & 1 == 1, "INR AC, CY kept"
     assert dcr(0x10, 0)[1] >> 4 & 1 == 0 and dcr(0x11, 0)[1] >> 4 & 1 == 1 and dcr(0x00, 1)[0] == 0xFF, "DCR AC rule"
     assert rot('RLC', 0x81, 0)[0] == 0x03 and rot('RLC', 0x81, 0)[1] & 1 == 1 and rot('RAR', 0x01, 1)[0] == 0x80 and rot('RAR', 0x01, 1)[1] & 1 == 1
-    print("PASS model80 selftest (spec worked examples)")
+    # DAA sanity, independent of the spec's rules: ADD then DAA of two packed-BCD numbers is the decimal sum.
+    # With the literal spec text this fails exactly when the binary sum is FA..FF; with carry1 it holds for all.
+    bcd = lambda n: (n // 10) << 4 | n % 10
+    lit_bad = set()
+    for x in range(100):
+        for y in range(100):
+            for cin in (0, 1):
+                r, f = alu('ADC', bcd(x), bcd(y), cin); a0 = r
+                exp, expcy = bcd((x + y + cin) % 100), 1 if x + y + cin >= 100 else 0
+                r1, f1 = daa(r, f, carry1=True); assert r1 == exp and (f1 & 1) == expcy, f"DAA(carry1) BCD {x}+{y}+{cin}"
+                r0, f0 = daa(r, f)
+                if (r0, f0 & 1) != (exp, expcy): lit_bad.add(a0)
+    assert lit_bad and all(v >= 0xFA for v in lit_bad), sorted(lit_bad)
+    print("note: literal DAA differs from decimal sum for binary sums", ", ".join("%02X" % v for v in sorted(lit_bad)))
+    print("PASS model80 selftest (spec worked examples; DAA with carry1 == decimal sum for all 2 x 10000 BCD pairs)")
