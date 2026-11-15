@@ -42,3 +42,9 @@ Busicom board. Measured in MAME with probe programs (traces in my scratch dir, 2
 The preamble's `LXI SP` points into RAM (e.g. F400). `ref8080.CPU` will take memory/I/O
 callbacks for that. Flags are compared on S, Z, AC, P, CY only (MAME's internal F doesn't keep
 bit 1 = 1).
+
+**Runner:** `tests/random/acc3/run.py` (MAME from `tests/random/acc3/fetch_mame.sh`). Evidence
+`logs/acc3-20261115T082452Z/`: 40 programs × 3,000 instructions, **all agree**. MAME independently agrees with three of
+the spec's rules: ANA's OR-of-bit-3 AC, the DCR AC *Decision* and DAA keeping CY (mutants of each are
+caught, see `notes.txt`). Known weakness, in `notes.txt`: 39% of traced instructions are a NOP
+slide after a wild jump.
