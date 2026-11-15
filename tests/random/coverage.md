@@ -18,6 +18,7 @@ coverage logs.
 | §4/§7 | HLDA rising, by cycle | fetch 371,497 · mem read 136,150 · mem write 2,888 · stack read 10,363 · stack write 54,129 · input 176 · output 12,579 · INTA 737 · INTA (halted) 117 | every bus-cycle type |
 | §4 | Halts / wake-ups by INT / held states from halt | 3,417 / 3,353 / 69,901 | |
 | §2/§4 | Interrupts accepted | 20,921 | |
+| §5/§8 | Mid-run resets (`run_resets.py`) | 135 resets, 114 mid-instruction, 45 unfinished writes rolled back; RAM compared at every reset and at the end; 0 mismatches (20 × 20,000 states, `logs/c8-resets-20261115T185949Z/`) | mutants: reset not forcing WR high 7/20, no rollback 5/20 |
 | §8 | Positive `bus_conflict` case | not yet | |
 
 ## Excluded on purpose (not gaps)
@@ -30,8 +31,7 @@ coverage logs.
 1. **Instructions per program:** ≈ 930 on average at 6,000 states, just under the spec's 1,000. Next:
    rerun at 7,000 states.
 2. **Positive `bus_conflict` case:** not yet in C8 (needs a mutant CPU that drives during DBIN, #31).
-3. **Mid-run reset** (§5, part of the C8 target): not yet in C8.
-4. **Gate-level variant** (§8): waits for Leo's synthesized netlist (#22).
+3. **Gate-level variant** (§8): waits for Leo's synthesized netlist (#22).
 
-Closed by the full-scale run: per-program depth (now many short programs), the three missing
+Closed: mid-run reset (`run_resets.py`). Closed by the full-scale run: per-program depth (now many short programs), the three missing
 condition-code combinations, and HOLD during an INTA taken from halt.
