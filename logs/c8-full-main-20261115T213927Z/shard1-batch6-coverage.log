@@ -1,0 +1,7 @@
+opcodes executed: 243/244; never: C7
+rarest: DFx172, 26x180, D7x193, 76x195, 27x196, 7Ex198, EFx203, 5Cx204
+cycle kinds: F4=478444, F5=89062, HLTA=195, I3=2172, IN=220, INTA=1112, OUT=14827, R=181081, SR=13900, SW=73887, SW5=223, W=3788
+condition codes: 48/48 (8 conditions x Jcc/Ccc/Rcc x taken/not); missing: none
+wait states by cycle: INTA=179, INTA (halted)=46, fetch=114474, input=29, mem read=35987, mem write=746, output=3050, stack read=2814, stack write=14940
+HLDA rises in cycle: INTA=40, INTA (halted)=8, fetch=22725, input=6, mem read=7227, mem write=125, output=629, stack read=550, stack write=2937
+interrupts accepted: 1112, after 215 distinct opcodes
