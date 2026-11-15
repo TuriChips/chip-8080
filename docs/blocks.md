@@ -9,8 +9,8 @@ All blocks are synchronous to the single rising-edge `clk` (one clock per T stat
 | Block | File | Owner | State it holds |
 |-------|------|-------|----------------|
 | `i8080_timing` | rtl/control/i8080_timing.v | Zura (A) | T-state and M-cycle counters, wait / halt / hold state |
-| `i8080_control` | rtl/control/i8080_control.v | Zura (A) | instruction register, INTE, interrupt latch, cycle plan for the current instruction (spec §6.2) |
-| `i8080_alu` | rtl/datapath/i8080_alu.v | Ada (B) | A, flags F (S Z AC P CY), ACT/TMP latches |
+| `i8080_control` | rtl/control/i8080_control.v | Zura (A) | instruction register, INTE, interrupt latch, cycle plan for the current instruction (spec §6.2), and the TMP latch (`d_in` held for `alu_src` 2) |
+| `i8080_alu` | rtl/datapath/i8080_alu.v | Ada (B) | A, flags F (S Z AC P CY) |
 | `i8080_regs` | rtl/datapath/i8080_regs.v | Ada (B) | B C D E H L, W Z, SP, PC; 16-bit incrementer/decrementer |
 | `i8080` | rtl/top.v | Zura (A) | none (wiring only) |
 | `i8080_mem` | rtl/datapath/i8080_mem.v | Ada (B) | 64 KiB RAM for tests (`$readmemh`) |
@@ -45,7 +45,7 @@ All blocks are synchronous to the single rising-edge `clk` (one clock per T stat
 | `cyc_states`, `cyc_last`, `cyc_idle`, `cyc_wr`, `halt_req`, `int_go` | out | 3, 1, 1, 1, 1, 1 | To timing |
 | `status` | out | 8 | Status byte for T1 (spec §4 table: A2, 82, 00, 86, 04, 42, 10, 23, 8A, 2B) |
 | `addr_sel` | out | 3 | Which address goes on `a`: 0 PC, 1 SP, 2 HL, 3 BC, 4 DE, 5 WZ, 6 {Z, Z} (I/O port) |
-| `d_out_sel` | out | 2 | 0 status, 1 ALU result / A, 2 register byte (`reg_rd`), 3 PC/WZ byte for pushes |
+| `d_out_sel` | out | 3 | Source of `d_out` (mux in `i8080`): **0 status, 1 ALU `result` (INR/DCR M), 2 register byte (regs `rdata`, including PC/WZ bytes for CALL/RST pushes via codes 6/7/10/11), 4 `a_out` (STA, STAX, MOV M,A, OUT, PUSH PSW's A), 5 `f_out` (PUSH PSW's flags)**, 3 and 6–7 reserved (Ada, chip-8080#25) |
 | `d_oe`, `a_oe`, `dbin`, `wr_n` | out | 1 each | Pins, per spec §4 |
 | `inte` | out | 1 | Pin: INTE flip-flop, set/cleared at T4 of EI/DI (spec §6.1) |
 | `alu_op` | out | 5 | To ALU (table in §3) |
