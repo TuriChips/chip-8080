@@ -1,0 +1,3 @@
+coverage: 50967 wait states (TW), 55 interrupt acknowledges (INTA) across all programs
+c8: seed=100 stim=1 programs=50 states=20000 mismatching_programs=0
+PASS

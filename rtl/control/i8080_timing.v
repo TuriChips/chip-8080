@@ -81,13 +81,16 @@ module i8080_timing (
             endcase
 
             if (ts >= T3 && ts <= 3'd5) begin
+                // HOLD is sampled at the closing edge of every hold state (spec 4 Release): low means
+                // the next state has hlda = 0 and the cycle carries on (rest of T4/T5, or the next T1).
+                if (held_r && !hold) held_r <= 1'b0;
+                // a write cycle's hold starts the state after T3: hlda rises there
                 if (hold_pend && ts == T3) begin held_r <= 1'b1; hold_pend <= 1'b0; end
                 if (last_state) begin
                     ts <= T1;
                     mc <= cyc_last ? 3'd1 : mc + 3'd1;
-                    // a hold that started in this cycle (or at its last state) freezes the next one
-                    if ((held_r || (hold_pend && ts == T3)) && hold) frz <= 1'b1;
-                    else if (held_r || (hold_pend && ts == T3)) held_r <= 1'b0;
+                    // still held at the end of the cycle: freeze at the next T1 until HOLD falls
+                    if ((held_r && hold) || (hold_pend && ts == T3)) frz <= 1'b1;
                 end else begin
                     ts <= ts + 3'd1;
                 end
