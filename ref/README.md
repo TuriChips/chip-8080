@@ -27,8 +27,10 @@ both ways), that the states generated from §6.2 add up to p.4-15's count, plus 
 for NOP, MVI M, PUSH, POP, OUT, IN, DAD, EI, DI, HLT and an interrupt out of halt.
 READY wait states: `PinModel(cpu, ready=f)` with READY sampled in T2 and each TW (§4/§7), TW pins
 per read/write type, not in I3/HLTA/T4/T5. HOLD/HLDA: `hold=f`, with the §4 hold rules as refined by
-chip-8080#25 (recognised in T2 or the TW where READY is high; HLDA in T3 for reads, a hold-entry
-state after T3 for writes, T4 for XTHL's SW5; not in DAD's idle cycles; from halt and back).
+chip-8080#25/#39 (recognised in T2 or the TW where READY is high; the state where HLDA rises shows its
+normal row with HLDA = 1 (T3 for reads, T4 for XTHL's SW5) or the hold-entry row (3-state writes);
+Hold rows from the next state, T4/T5 included; release sampled at the closing edge of each held
+state, with unfinished T4/T5 resuming their normal rows; not in DAD's idle cycles; from halt and back).
 INT: `int_req=f, int_vector=f`, sampled in the last state of each instruction and in each halt state,
 gated by INTE and EI's delay, ignored while HLDA = 1; the latch is re-decided at every sample.
 
