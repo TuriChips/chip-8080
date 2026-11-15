@@ -33,17 +33,18 @@ def states(cyc, w=0):
     for t in range(4, n + 1): out.append((AOE | WRN, 0xFF & ~DOE, a, None, 1, 0))                      # T4/T5: d_oe and d_out not compared
     return out
 HOLD_ROW = (WRN | HLDA, 0xFF, None, None, 1)                  # sync 0, a_oe 0, d_oe 0, dbin 0, wr_n 1, wait 0, hlda 1; a, d_out not compared
-def hold_states(cyc, extra):
-    """One machine cycle with HOLD raised at the start of T1 (so it is seen at the closing edge of T2) and released at the start edge
-    of the `extra`-th state after the hlda-entry state (extra >= 1: the stimulus rule lets HOLD change only while hlda = 1, spec 7).
-    Spec 4 (Hold, chip-8080#20/#39): hlda rises in T3 of a read/input and in the state after T3 of a write/output; that state shows its
-    normal row with hlda = 1 (a 3-state write: the hold-entry row); from the next state on the Hold row applies, even while T4/T5 run
-    internally; HOLD is sampled at the closing edge of each hold state and, if low, the next state has hlda = 0 and is T1 of the next cycle,
-    or the not yet used rest of T4/T5 with their normal rows (each hold state consumes one internal T state)."""
-    kind, addr, data, n = cyc; base = states(cyc); wr = kind in ('W', 'SW', 'OUT'); a = addr & 0xFFFF
-    e = 3 if wr else 2                                         # index of the state in which hlda rises
-    out = [(f, m, ad, dv, 1, 1) for (f, m, ad, dv, r, h) in base[:min(e, n)]]            # states before it, HOLD high
-    if e < n: f, m, ad, dv, r, h = base[e]; out.append((f | HLDA, m, ad, dv, 1, 1)); remaining = n - 1 - e
+def hold_states(cyc, extra, w=0):
+    """One machine cycle (with w wait states) with HOLD raised at the start of T1 and released at the start edge of the `extra`-th state
+    after the hlda-entry state (extra >= 1: the stimulus rule lets HOLD change only while hlda = 1, spec 7).
+    Spec 4 (Hold, chip-8080#20/#39): HOLD is recognised at the closing edge of T2, or of the TW where READY is high; hlda rises in T3 of a
+    read/input and in the state after T3 of a write/output; that state shows its normal row with hlda = 1 (a 3-state write: the hold-entry row);
+    from the next state on the Hold row applies, even while T4/T5 run internally; HOLD is sampled at the closing edge of each hold state and,
+    if low, the next state has hlda = 0 and is T1 of the next cycle, or the not yet used rest of T4/T5 with their normal rows (each hold state
+    consumes one internal T state)."""
+    kind, addr, data, n = cyc; base = states(cyc, w); wr = kind in ('W', 'SW', 'OUT'); a = addr & 0xFFFF
+    e = (3 if wr else 2) + w                                   # index of the state in which hlda rises
+    out = [(f, m, ad, dv, r, 1) for (f, m, ad, dv, r, h) in base[:min(e, len(base))]]      # states before it, HOLD high (READY as in the plain cycle)
+    if e < len(base): f, m, ad, dv, r, h = base[e]; out.append((f | HLDA, m, ad, dv, 1, 1)); remaining = len(base) - 1 - e
     else: out.append((AOE | WRN | HLDA, 0xFF, a, None, 1, 1)); remaining = 0              # 3-state write: the hold-entry row
     nxt = e + 1
     for k in range(1, extra + 1):                              # hold states; HOLD is low during the last one
@@ -52,12 +53,26 @@ def hold_states(cyc, extra):
     while remaining > 0:                                       # the rest of T4/T5, normal rows, hlda = 0
         f, m, ad, dv, r, h = base[nxt]; out.append((f, m, ad, dv, 1, 0)); nxt += 1; remaining -= 1
     return out
+def halt_hold_pins():
+    """LXI SP; HLT; then the halt state with HOLD taken twice from TWH (spec 4: HOLD is sampled at the closing edge of each TWH; if 1 the next state
+    is a Hold state; released at the start edge of a hold state, the next state is TWH again). INTE stays 0, so only RESET could leave the halt."""
+    m = Mach(0); pins = []
+    for t in ("LXI SP,0x4800", "HLT"):
+        for c in m.run(t):
+            if c[0] == 'HLTA':
+                a = c[1] & 0xFFFF
+                pins += [(SYNC | AOE | DOE | WRN, 0xFF, a, 0x8A, 1, 0), (AOE | WRN, 0xFF, a, None, 1, 0), (WAIT | WRN, 0xFF, None, None, 1, 0)]   # T1, T2, first TWH
+            else: pins += states(c)
+    twh = lambda h: (WAIT | WRN, 0xFF, None, None, 1, h)
+    hold = lambda h: HOLD_ROW + (h,)
+    pins += [twh(0)] * 3 + [twh(1), hold(1), hold(1), hold(0)] + [twh(0)] * 3 + [twh(1), hold(1), hold(0)] + [twh(0)] * 4
+    return ["        LXI SP,0x4800", "        HLT"], pins
 def gen(seed, n=1200, wait_mode=False, hold_mode=False):
     rnd = random.Random(seed); m = Mach(0); lines = []; pins = []
     def ex(line):
         lines.append("        " + line)
         for c in m.run(line):
-            if hold_mode and c[0] != 'I3' and rnd.random() < 0.2: pins.extend(hold_states(c, rnd.choice([1, 1, 2, 3, 6]))); continue
+            if hold_mode and c[0] != 'I3' and rnd.random() < 0.2: pins.extend(hold_states(c, rnd.choice([1, 1, 2, 3, 6]), rnd.choice([0, 0, 1, 2]) if wait_mode else 0)); continue
             for st in states(c, rnd.choice([0, 0, 0, 1, 2]) if wait_mode and c[0] != 'I3' else 0): pins.append(st)
     ex("LXI SP,0x4800")
     for x in 'BCDEHLA': ex(f"MVI {x},{rnd.randrange(256)}")
@@ -110,8 +125,9 @@ def gen(seed, n=1200, wait_mode=False, hold_mode=False):
         else: ex(rnd.choice(["INR A", "DCR A", "RLC", "CMA"]))
         i += 1
     return lines, pins
-for seed, wm, hm in ((1, False, False), (2, False, False), (3, True, False), (4, False, True)):   # seed 3: wait states (C3 READY); seed 4: HOLD (C3 HOLD/HLDA)
-    lines, pins = gen(seed, wait_mode=wm, hold_mode=hm)
+for seed, wm, hm in ((1, False, False), (2, False, False), (3, True, False), (4, False, True), (5, True, True), (6, None, None)):   # 3: wait states; 4: HOLD; 5: HOLD in cycles with wait states; 6: HOLD taken from the halt state
+    lines, pins = halt_hold_pins() if seed == 6 else gen(seed, wait_mode=wm, hold_mode=hm)
+    if seed == 6: lines = ["        .org 0"] + lines; pins = pins; asm = ["; C2 pins, seed 6: HOLD from the halt state, generated by gen_pins80.py"] + lines; open(f"{d}/pins_s6.asm", "w").write("\n".join(asm) + "\n"); open(f"{d}/pins_s6.pins", "w").write("".join("%02X %02X %s %s %d %d\n" % (fl, mask, 'xxxx' if a is None else '%04X' % a, 'xx' if dv is None else '%02X' % dv, rdy, hld) for fl, mask, a, dv, rdy, hld in pins)); continue
     asm = [f"; C2 pin timing, seed {seed}, generated by gen_pins80.py", "        .org 0"] + lines
     top = max(asm80.assemble(asm, True, {}))
     assert top < 0x3F00, top

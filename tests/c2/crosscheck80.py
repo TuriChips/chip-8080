@@ -12,7 +12,7 @@ sys.path.insert(0, ref); import ref8080, pins8080
 src = open(asm).read().splitlines(); labels = {}; asm80.assemble(src, False, labels); mem = asm80.assemble(src, True, labels); img = bytearray(max(mem) + 1)
 for a, b in mem.items(): img[a] = b
 rows = [l.split() for l in open(pins)]
-cpu = ref8080.CPU(bytes(img), inp=lambda p: p ^ 0x5A); model = pins8080.PinModel(cpu, ready=lambda n: int(rows[n][4]) if n < len(rows) else 1).states()
+cpu = ref8080.CPU(bytes(img), inp=lambda p: p ^ 0x5A); model = pins8080.PinModel(cpu, ready=lambda n: int(rows[n][4]) if n < len(rows) else 1, hold=lambda n: int(rows[n][5]) if n < len(rows) else 0).states()   # needs a ref/ with hold(n) (PR #29/#42)
 bad = 0; n = 0
 for line in open(pins):
     fl, mk, a, d, _r, _h = line.split(); fl = int(fl, 16); mk = int(mk, 16); p = next(model); n += 1
