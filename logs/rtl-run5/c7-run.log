@@ -1,0 +1,6 @@
+xfer_s1: PASS: trace=2203 expected=2203 errors=0 bus_conflict_clocks=0
+xfer_s2: PASS: trace=2207 expected=2207 errors=0 bus_conflict_clocks=0
+xfer_s3: PASS: trace=2156 expected=2156 errors=0 bus_conflict_clocks=0
+alu_adc_mem: PASS: trace=784 expected=784 errors=0 bus_conflict_clocks=0
+inr_m: PASS: trace=2048 expected=2048 errors=0 bus_conflict_clocks=0
+c7: 5 runs, 0 failing
