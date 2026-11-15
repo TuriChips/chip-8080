@@ -1,0 +1,4 @@
+resets: 135 (114 mid-instruction), memory writes rolled back: 45
+stopped early: 0 programs reached a self-written undocumented byte (§6), 1 had overwritten their reset vector or preamble before a reset (§5)
+c8 resets: seed=1 programs=20 states=20000 mismatching_programs=0
+PASS
