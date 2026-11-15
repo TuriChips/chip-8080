@@ -182,7 +182,7 @@ Fields: `DDD`/`SSS` = register code B 000, C 001, D 010, E 011, H 100, L 101, M 
 | 11 110 011 | DI | INTE flip-flop (and the `inte` pin) cleared at T4 of DI's M1 (p.2-18: "RESET INTE F/F"); takes effect immediately, so an INT can't be accepted at the end of DI itself | – | 4 |
 | 00 000 000 | NOP | none | – | 4 |
 
-Checks of this table against p.4-15 still to do before sign-off: one more read of every row against the page image by a second agent (Beru, as the model writer). The machine-cycle breakdown per opcode (which cycles from §4 each instruction runs) goes in §6.2 from the manual's instruction-cycle tables (pp.2-16 to 2-20).
+Second read done: Beru checked every row against the p.4-15 page image (encodings and clock cycles all match, chip-8080#5), and `ref/ref8080.py selftest` checks the state count of all 244 opcodes, conditionals both ways, against p.4-15 written as independent encoding patterns. The machine-cycle breakdown per opcode (which cycles from §4 each instruction runs) goes in §6.2 from the manual's instruction-cycle tables (pp.2-16 to 2-20).
 
 ### 6.2 Machine cycles per instruction (User's Manual pp.2-16 to 2-20, from the page images)
 Notation: **F4** / **F5** = instruction fetch (§4 type 1) of 4 or 5 states (T5 only when the table uses it). **R(x)** = memory read (type 2) at address x, **W(x)** = memory write (type 3), 3 states each plus any TW. **SR**/**SW** = stack read/write (types 4/5) at SP. **IN**/**OUT** = types 6/7. **I3** = a 3-state machine cycle with no bus transfer (see the DAD note). "[9]" in the manual (the result of an ALU op written to A during T2 of the *next* M1) is internal overlap, not an extra cycle.
