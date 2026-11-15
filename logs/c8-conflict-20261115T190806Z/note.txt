@@ -1,0 +1,1 @@
+Check of the check: with i8080_system's bus_conflict tied to 0, conflict_check reports FAIL (0 states).
