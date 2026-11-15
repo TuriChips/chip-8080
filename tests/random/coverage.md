@@ -19,7 +19,7 @@ coverage logs.
 | §4 | Halts / wake-ups by INT / held states from halt | 3,417 / 3,353 / 69,901 | |
 | §2/§4 | Interrupts accepted | 20,921 | |
 | §5/§8 | Mid-run resets (`run_resets.py`) | 135 resets, 114 mid-instruction, 45 unfinished writes rolled back; RAM compared at every reset and at the end; 0 mismatches (20 × 20,000 states, `logs/c8-resets-20261115T185949Z/`) | mutants: reset not forcing WR high 7/20, no rollback 5/20 |
-| §8 | Positive `bus_conflict` case | not yet | |
+| §8 | Positive `bus_conflict` case (`c8/conflict_check.py`) | faulty CPU driving during DBIN: flag = 1 in 1,248 states, all with `d_oe` = `dbin` = 1; clean RTL: 0 | flag tied to 0 makes the check FAIL |
 
 ## Excluded on purpose (not gaps)
 - The 12 undocumented bytes (spec §6: not tested). Self-modifying code that writes one and reaches
@@ -30,8 +30,7 @@ coverage logs.
 ## Gaps
 1. **Instructions per program:** ≈ 930 on average at 6,000 states, just under the spec's 1,000. Next:
    rerun at 7,000 states.
-2. **Positive `bus_conflict` case:** not yet in C8 (needs a mutant CPU that drives during DBIN, #31).
-3. **Gate-level variant** (§8): waits for Leo's synthesized netlist (#22).
+2. **Gate-level variant** (§8): waits for Leo's synthesized netlist (#22).
 
-Closed: mid-run reset (`run_resets.py`). Closed by the full-scale run: per-program depth (now many short programs), the three missing
+Closed: mid-run reset (`run_resets.py`), positive `bus_conflict` (`c8/conflict_check.py`). Closed by the full-scale run: per-program depth (now many short programs), the three missing
 condition-code combinations, and HOLD during an INTA taken from halt.
