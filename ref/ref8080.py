@@ -377,6 +377,35 @@ def selftest():
         c = CPU(bytes([0xC8])); c.sp = 0x8000; c.z = z
         check(f"RZ z={z}", c.step()[0], wr)
 
+    # All 244 documented opcodes: state counts from the p.4-15 table (spec §6.1), written as
+    # encoding patterns independent of the decoder above; conditionals checked false and true.
+    def p415(op, taken):
+        hi, d, s_ = op >> 6, (op >> 3) & 7, op & 7
+        if op == 0x76: return 7
+        if hi == 1: return 7 if 6 in (d, s_) else 5
+        if hi == 2: return 7 if s_ == 6 else 4
+        if hi == 0:
+            return {6: 10 if d == 6 else 7, 4: 10 if d == 6 else 5, 5: 10 if d == 6 else 5,
+                    1: 10, 3: 5, 7: 4, 0: 4,
+                    2: {0: 7, 1: 7, 2: 7, 3: 7, 4: 16, 5: 16, 6: 13, 7: 13}[d]}[s_]
+        if s_ == 0: return 11 if taken else 5                      # Rcc
+        if s_ == 1: return {1: 10, 5: 5, 7: 5}.get(d, 10)           # RET PCHL SPHL / POP
+        if s_ == 2: return 10                                      # Jcc
+        if s_ == 3: return {0: 10, 2: 10, 3: 10, 4: 18}.get(d, 4)  # JMP OUT IN XTHL / XCHG DI EI
+        if s_ == 4: return 17 if taken else 11                     # Ccc
+        if s_ == 5: return 17 if d == 1 else 11                    # CALL / PUSH
+        if s_ == 6: return 7                                       # ALU immediate
+        return 11                                                  # RST
+    for op in range(256):
+        if op in UNDOCUMENTED:
+            continue
+        for taken in (False, True):
+            c = CPU(bytes([op, 0, 0])); c.sp = 0x8000
+            ccc = (op >> 3) & 7
+            want_flag = (ccc & 1) if taken else 1 - (ccc & 1)       # make the condition true/false
+            c.z = c.cy = c.p = c.s = want_flag
+            check(f"p.4-15 states {op:02X} taken={taken}", c.step()[0], p415(op, taken))
+
     # SUB A with A = 3E: CY 0, S 0, Z 1, P 1, AC 1 (ALP p.3-64, quoted in §6)
     c, _ = run([0x97], 1, lambda c: setattr(c, "a", 0x3E))
     check("SUB A (3E)", (c.a, c.cy, c.s, c.z, c.p, c.ac), (0, 0, 0, 1, 1, 1))
