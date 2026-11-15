@@ -1,0 +1,2 @@
+note: literal DAA differs from decimal sum for binary sums FA, FB, FC, FD, FE, FF
+PASS model80 selftest (spec worked examples; DAA with carry1 == decimal sum for all 2 x 10000 BCD pairs)
