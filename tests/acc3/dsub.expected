@@ -1,0 +1,2 @@
+# Source: 96 and 29 are the manual's result bytes (pp.6-15, 6-16: 4358 - 1362 = 2996); the six 00 bytes after them are OUR arithmetic (no borrow, the other digits are 0 - 0).
+9629000000000000
