@@ -1,6 +1,6 @@
 # Blocks: Intel 8080 (Chip #2)
 
-Owner: Igris (Architect) · Spec: `docs/spec.md` · Status: v1.1 (chip-8080#16, #20): datapath ports from Ada's review, shared codes and `cyc_wr` from Zura's. Normative once Sai merges the PR.
+Owner: Igris (Architect) · Spec: `docs/spec.md` · Status: v1.2 (chip-8080#28, #37): documents what Zura and Ada built and Beru's C8 verified (`pair_op` 13, `alu_src` 3, `tmp`, `alu_pop_f`, `rst_vec`, `d_out_sel` 6, 3-bit `wdata_sel`). Normative once Sai merges the PR.
 
 All blocks are synchronous to the single rising-edge `clk` (one clock per T state, spec §1). `reset` is synchronous and active high (spec §5). Only the pins of `i8080` (spec §2) and of `i8080_system` are normative for tests. The internal ports below are the contract **between Zura and Ada**: tests don't bind to them, but neither designer changes one without a PR the other reviews.
 
@@ -45,15 +45,19 @@ All blocks are synchronous to the single rising-edge `clk` (one clock per T stat
 | `cyc_states`, `cyc_last`, `cyc_idle`, `cyc_wr`, `halt_req`, `int_go` | out | 3, 1, 1, 1, 1, 1 | To timing |
 | `status` | out | 8 | Status byte for T1 (spec §4 table: A2, 82, 00, 86, 04, 42, 10, 23, 8A, 2B) |
 | `addr_sel` | out | 3 | Which address goes on `a`: 0 PC, 1 SP, 2 HL, 3 BC, 4 DE, 5 WZ, 6 {Z, Z} (I/O port) |
-| `d_out_sel` | out | 3 | Source of `d_out` (mux in `i8080`): **0 status, 1 ALU `result` (INR/DCR M), 2 register byte (regs `rdata`, including PC/WZ bytes for CALL/RST pushes via codes 6/7/10/11), 4 `a_out` (STA, STAX, MOV M,A, OUT, PUSH PSW's A), 5 `f_out` (PUSH PSW's flags)**, 3 and 6–7 reserved (Ada, chip-8080#25) |
+| `d_out_sel` | out | 3 | Source of `d_out` (mux in `i8080`): **0 status, 1 ALU `result` (INR/DCR M), 2 regs `rdata` (incl. PC/WZ bytes for CALL/RST pushes), 4 `a_out`, 5 `f_out` (PUSH PSW), 6 `tmp` (MVI M write-back)**, 3 and 7 reserved (Ada, #25; Zura, #36) |
 | `d_oe`, `a_oe`, `dbin`, `wr_n` | out | 1 each | Pins, per spec §4 |
 | `inte` | out | 1 | Pin: INTE flip-flop, set/cleared at T4 of EI/DI (spec §6.1) |
 | `alu_op` | out | 5 | To ALU (table in §3) |
 | `alu_a_we`, `alu_f_we` | out | 1, 1 | To ALU `a_we`, `f_we` |
 | `alu_cy_load` | out | 1 | To ALU `cy_load`; `cy_val` is wired from regs `carry16` (DAD) |
-| `alu_src` | out | 2 | Operand `b`: 0 register (`reg_rd`), 1 `d_in`, 2 TMP (latched `d_in`), 3 reserved |
+| `alu_src` | out | 2 | Operand `b` (mux in `i8080`): 0 regs `rdata`, 1 `d_in`, 2 `tmp`, **3 ALU `a_out`** (ADD A, CMP A, INR A …; A isn't in regs) (#28) |
+| `alu_pop_f` | out | 1 | To ALU `pop_f` (POP PSW) (#28) |
+| `tmp` | out | 8 | The TMP latch: `d_in` held from T3 of a read, for INR/DCR M and MVI M write-back (#28) |
+| `rst_vec` | out | 3 | NNN of RST / the INTA instruction, for `wdata_sel` 2 |
+| `a_hold` | out | 1 | High in the hold-entry state of a 3-state write: `i8080` then drives `a` from a register `a_q` (the previous state's address), because SP/PC/WZ have already moved at the end of T3 and spec §4 holds `a` there (Zura, #40) |
 | `reg_rd_sel`, `reg_wr_sel`, `reg_we` | out | 4, 4, 1 | 8-bit register file access, codes in §2a |
-| `wdata_sel` | out | 2 | Source of regs `wdata` (mux in `i8080`): 0 `d_in`, 1 ALU `result`, 2 `{2'b00, NNN, 3'b000}` (RST vector), 3 ALU `a_out` |
+| `wdata_sel` | out | 3 | Source of regs `wdata` (mux in `i8080`): 0 `d_in`, 1 ALU `result`, 2 `{2'b00, rst_vec, 3'b000}` (RST vector), 3 `a_out`, **4 zero** (RST's W ← 0); 5–7 reserved (give 00) |
 | `rp_sel` | out | 2 | Register pair for `pair_op` 4, 5, 12: 00 BC, 01 DE, 10 HL, 11 SP |
 | `pair_op` | out | 4 | 16-bit op on regs, codes in §2a |
 
@@ -103,9 +107,15 @@ All blocks are synchronous to the single rising-edge `clk` (one clock per T stat
 | 10 | swap DE and HL (XCHG) |
 | 11 | HL ← WZ (end of XTHL) |
 | 12 | HL ← HL + rp, `carry16` = carry out of bit 15 (DAD; control then pulses the ALU's `cy_load`) |
-| 13–15 | reserved |
+| 13 | **PC ← {wdata, Z}, W ← wdata** (JMP, taken Jcc, RET, taken Rcc: the high byte arrives from `d_in` in the cycle's last state, so `pair_op` 7 would read the old W) (Zura/Ada, #28, #37; verified by C8, #36) |
+| 14–15 | reserved |
 
 RST n: control loads Z = 8n, W = 0 via `wdata_sel` 2, then `pair_op` 7.
+
+### 2b. Rules both sides rely on (#28)
+- **An 8-bit register write (`we`) and a `pair_op` may happen on the same clock edge**, as long as they touch different registers (e.g. T3 of an R(PC) cycle: Z or a pair half written while PC ← PC + 1). Control never asks for both on the same register.
+- **RET/Rcc's final SP + 1** is done by control in T2 of the *next* M1, because the last state's `pair_op` is busy with the PC load (13). It's invisible at the pins (`a` = PC then). Tests and the model must not read the debug `sp` between RET's last state and the next T2.
+- The hold pins are spec §4's, including the **hold-entry row** of a 3-state write (`hlda` = 1, `a_oe` = 1 with `a` held, `d_oe` = 0), then the Hold row from the next state. `i8080_timing` must follow the merged spec (#25), not the earlier reading in #28 item 7.
 
 ### `i8080` (Zura, rtl/top.v)
 Ports exactly spec §2, in that order. Wiring only.
