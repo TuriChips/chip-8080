@@ -32,7 +32,13 @@ instruction. Symbols that work: `a`, `f`, `af`, `bc`, `hl`, `sp` (and `pc`). A 1
 program (LXI SP; LXI B; MVI A,0F; ADI 1; DAA; STA/LDA F000; JMP) traced as expected.
 
 For the comparison the harness has to model the machine, as acceptance 3 did for the 4004's
-Busicom board: ROM read-only at 0000–1FFF, RAM only at F000–F3FF (so the preamble's SP points
-there), the unmapped read value, and the 8255 at F4–F7. `ref8080.CPU` will take memory/I/O
+Busicom board. Measured in MAME with probe programs (traces in my scratch dir, 2026-11-15):
+- cartridge ROM 0000–1FFF, read-only (writes there are dropped);
+- RAM F000–F3FF, starts all 0, **not mirrored** (reads of F400, F800, FC00, E000 and 7000 return 0
+  after F000 = 5A);
+- **unmapped reads return 00** (so code that runs off the cartridge executes NOPs), and unmapped
+  writes are dropped;
+- the 8255 at ports F4–F7 (the random programs leave IN out; OUT doesn't change CPU state).
+The preamble's `LXI SP` points into RAM (e.g. F400). `ref8080.CPU` will take memory/I/O
 callbacks for that. Flags are compared on S, Z, AC, P, CY only (MAME's internal F doesn't keep
 bit 1 = 1).
