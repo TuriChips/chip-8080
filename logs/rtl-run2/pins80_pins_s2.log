@@ -1,0 +1,2 @@
+PASS: states=12868 errors=0
+tb/tb_pins80.sv:44: $finish called at 128730000 (1ps)

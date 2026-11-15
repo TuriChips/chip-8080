@@ -1,0 +1,1 @@
+C4 pin-level interrupt tests (15 runs: INT at 11 states of the INR/NOP loop, 4 states while halted) on a local merge of PR #31 (7a07af6), #32 (70b69e6), #35 (703b922): INTA cycle (status 23 / 2B, a = PC, 5 states), two stack writes, INTE pin, HLT's halt-acknowledge cycle and TWH states. All PASS; the expected pins also agree with Beru's pin model (0 differences).

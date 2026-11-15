@@ -1,0 +1,1 @@
+C7 on i8080_system (local merge of PR #31 7a07af6, #32 70b69e6, #35 703b922): 5 programs (3 random data-transfer, ADC M, INR M; ~7,800 OUT entries) with X/Z on every system output and bus_conflict checked each clock: PASS. Three mutants on a scratch rtl copy: DBIN stuck 1 and d_oe stuck 1 make bus_conflict rise (positive case), d_out Z when idle fails the X/Z check: all caught.
