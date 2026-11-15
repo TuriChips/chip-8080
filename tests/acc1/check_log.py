@@ -19,6 +19,11 @@ for ln in src:      # '	db	014h, 047h, 04Bh, 0A6h	; expected crc' then "	tmsg	'n
     if m: crc = "".join("%02x" % int(x[:-1], 16) for x in re.findall(r"[0-9A-Fa-f]+h", m[1])); continue
     m = re.match(r"\s*tmsg\s+'([^']*)'", ln)
     if m and crc: tests.append((m[1], crc)); crc = None
+# A future source change must not silently drop a test: every 'db ... ; expected crc' data line and every
+# "tmsg '<name>'" line must have been paired (the other two 'expected crc' words in the source are comments).
+n_db = sum(1 for ln in src if re.match(r"\s*db\s+(?:[0-9A-Fa-f]+h,?\s*){4}\s*;\s*expected crc", ln))
+n_msg = sum(1 for ln in src if re.match(r"\s*tmsg\s+'", ln))
+if not (n_db == n_msg == len(tests)): fail("source has %d expected-crc lines and %d tmsg lines but %d were paired: the parser is out of date" % (n_db, n_msg, len(tests)))
 if len(tests) < 20: fail("found only %d tests in the .MAC source, the parser is out of date" % len(tests))
 if "8080 instruction exerciser" not in log: fail("banner missing")
 bad = [l for l in log.splitlines() if "ERROR" in l]
