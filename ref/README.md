@@ -29,7 +29,8 @@ READY wait states: `PinModel(cpu, ready=f)` with READY sampled in T2 and each TW
 per read/write type, not in I3/HLTA/T4/T5. HOLD/HLDA: `hold=f`, with the §4 hold rules as refined by
 chip-8080#25 (recognised in T2 or the TW where READY is high; HLDA in T3 for reads, a hold-entry
 state after T3 for writes, T4 for XTHL's SW5; not in DAD's idle cycles; from halt and back).
-Not yet: INT arriving mid-instruction.
+INT: `int_req=f, int_vector=f`, sampled in the last state of each instruction and in each halt state,
+gated by INTE and EI's delay, ignored while HLDA = 1; the latch is re-decided at every sample.
 
 ## Acceptance test 4 (spec §9 numbering): independent emulator
 Renamed from "acceptance test 3" after spec v1 (#5); log folders were renamed to `logs/acc4-*`, and

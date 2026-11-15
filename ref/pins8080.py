@@ -11,9 +11,8 @@ Cycle shapes come from the instruction model's §6.2 cycle list:
   OUT     output       T1-T3, status 10                 I3  DAD bus-idle, 3 states (§6.2 Decision)
   INTA    interrupt acknowledge (RST n), T1-T5, status 23 (2B while halted)
   HLTA    halt acknowledge T1, T2, then TWH until left, status 8A
-READY wait states (TW) and HOLD/HLDA via ready(n), hold(n) callbacks (hold rules per §4 as
-refined by chip-8080#25). Interrupts are
-honoured at instruction boundaries and from the halt state.
+READY wait states (TW), HOLD/HLDA and INT via ready(n), hold(n), int_req(n), int_vector(n)
+callbacks (hold rules per §4 as refined by chip-8080#25).
 
 Usage: pins8080.py selftest
 """
@@ -63,12 +62,16 @@ HOLD_ENTRY = lambda addr, inte: Pins("HOLDE", 0, 1, addr, 0, None, 0, 1, 0, 1, i
 
 
 class PinModel:
-    def __init__(self, cpu, ready=None, hold=None):
-        """ready(n), hold(n) -> 0/1: READY / HOLD during absolute state n (defaults 1 / 0). Per the
-        §7 stimulus rule a test changes them only on the edge starting a T1 or TW."""
+    def __init__(self, cpu, ready=None, hold=None, int_req=None, int_vector=None):
+        """ready(n), hold(n), int_req(n) -> 0/1 and int_vector(n) -> 0..7: inputs during absolute
+        state n (defaults 1 / 0 / 0 / 7). Per the §7 stimulus rule a test changes them only on the
+        edge starting a T1 or TW. INT is sampled in the last state of each instruction and in each
+        halt state, gated by INTE (and EI's delay) and ignored while HLDA = 1 (§2, §4, p.2-11)."""
         self.cpu = cpu
         self.ready = ready or (lambda n: 1)
         self.hold = hold or (lambda n: 0)
+        self.int_req = int_req or (lambda n: 0)
+        self.int_vector = int_vector or (lambda n: 7)
         self.n = 0                                    # absolute state counter
 
     def instruction_states(self):
@@ -119,16 +122,30 @@ class PinModel:
         self.n += len(out)
         return states_count, out
 
+    def sample_int(self, n, pin):
+        """INT seen in state n (with that state's pins): latch RST n for the next instruction boundary,
+        or clear the latch, so a request that wasn't accepted doesn't linger."""
+        c = self.cpu
+        c.int_req = self.int_vector(n) & 7 if (self.int_req(n) and not pin.hlda) else None
+
     def states(self):
         """Yield Pins for every state, forever (TWH while halted with no accepted interrupt)."""
         c = self.cpu
         while True:
             if c.halted and not (c.int_req is not None and c.inte):
                 pins = HOLD(c.inte) if self.hold(self.n) else TWH(c.inte)   # HOLD from halt, back to halt
+                self.sample_int(self.n, pins)            # accepted -> INTA from the next state
                 self.n += 1
                 yield pins
                 continue
+            n0 = self.n
             _, pins = self.instruction_states()
+            # the instruction's last state: the last one before any trailing hold states (for HLT,
+            # its first TWH, which is a halt state)
+            k = len(pins) - 1
+            while k > 0 and pins[k].state == "HOLD" and pins[k - 1].state in ("HOLD", "HOLDE", "T3", "T4", "T5"):
+                k -= 1
+            self.sample_int(n0 + k, pins[k])
             yield from pins
 
 
@@ -263,6 +280,44 @@ def selftest():
     c = R.CPU(bytes([0x76])); g = PinModel(c, hold=lambda n: 1 if 9 <= n < 12 else 0).states()
     p = [next(g) for _ in range(14)]
     check("halt->hold->halt", [x.state for x in p[7:]], ["TWH", "TWH", "HOLD", "HOLD", "HOLD", "TWH", "TWH"])
+
+    # INT: EI; NOP; NOP with INT high throughout and vector 3: not taken at the end of EI (delay),
+    # taken at the end of the first NOP: INTA (status 23, a = PC not incremented, INTE 0), RST 3
+    c = R.CPU(bytes([0xFB, 0x00, 0x00, 0x00])); c.sp = 0x8000
+    g = PinModel(c, int_req=lambda n: 1, int_vector=lambda n: 3).states()
+    p = [next(g) for _ in range(19)]
+    check("INT after EI+1", [x.state for x in p[:13]],
+          ["T1", "T2", "T3", "T4", "T1", "T2", "T3", "T4", "T1", "T2", "T3", "T4", "T5"])
+    check("INTA T1", (p[8].d_out, p[8].a, p[8].inte), (0x23, 0x0002, 0))
+    check("INTA pushes 0002, jumps to 0018", (p[14].d_out, p[17].d_out, c.pc), (0x00, 0x02, 0x18))
+    # INT with INTE = 0 is never taken
+    c = R.CPU(bytes([0x00] * 4)); g = PinModel(c, int_req=lambda n: 1).states()
+    check("INT ignored with INTE 0", [next(g).d_out for _ in range(16)][::4], [0xA2] * 4)
+    # INT high only mid-instruction (state 1 of EI;NOP;...) is not seen: sampled at instruction ends
+    c = R.CPU(bytes([0xFB, 0x00, 0x00])); c.sp = 0x8000
+    g = PinModel(c, int_req=lambda n: 1 if n in (5, 6) else 0).states()
+    check("INT only mid-instruction", [next(g).d_out for _ in range(12)][::4], [0xA2] * 3)
+    # from halt: EI; HLT; INT rises at state 13 (a TWH) -> INTA while halted (2B) at state 14
+    c = R.CPU(bytes([0xFB, 0x76])); c.sp = 0x8000
+    g = PinModel(c, int_req=lambda n: 1 if n >= 13 else 0, int_vector=lambda n: 1).states()
+    p = [next(g) for _ in range(15)]
+    check("INT from halt", [x.state for x in p[11:]], ["TWH", "TWH", "TWH", "T1"])
+    check("INTA while halted", (p[14].d_out, p[14].a), (0x2B, 0x0002))
+    # INT rising at the T1 of an instruction's later cycle is seen at the instruction's end:
+    # EI; MVI A,1 (F4 at 4-7, R at 8-10): INT from state 8 -> INTA right after MVI
+    c = R.CPU(bytes([0xFB, 0x3E, 0x01, 0x00])); c.sp = 0x8000
+    g = PinModel(c, int_req=lambda n: 1 if n >= 8 else 0).states()
+    p = [next(g) for _ in range(12)]
+    check("INT sampled at the last state", (p[11].state, p[11].d_out), ("T1", 0x23))
+    # a request seen while INTE = 0 and dropped before EI is not taken later (no stale latch)
+    c = R.CPU(bytes([0x00, 0xFB, 0x00, 0x00, 0x00])); c.sp = 0x8000
+    g = PinModel(c, int_req=lambda n: 1 if n < 4 else 0).states()
+    check("no stale INT", [x.d_out for x in [next(g) for _ in range(20)] if x.state == "T1"], [0xA2] * 5)
+    # INT is ignored while held: EI; NOP with HOLD across the NOP's end and INT high only then
+    c = R.CPU(bytes([0xFB, 0x00, 0x00, 0x00])); c.sp = 0x8000
+    pm = PinModel(c, hold=lambda n: 1 if 5 <= n < 9 else 0, int_req=lambda n: 1 if 6 <= n < 9 else 0)
+    g = pm.states()
+    check("INT ignored in HOLD", [x.d_out for x in [next(g) for _ in range(17)] if x.state == "T1"], [0xA2] * 4)
 
     # reset pins (§5)
     check("reset pins", RESET_PINS, Pins("RESET", 0, 0, None, 0, None, 0, 1, 0, 0, 0))
