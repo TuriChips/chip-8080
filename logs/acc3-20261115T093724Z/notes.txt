@@ -3,3 +3,6 @@ Model mutants (not committed), same 40 programs (seeds 100-139) x 3000, generato
   DAA CY = carry-out only (drops CY_in): agree=37/40
   DCR AC = low nibble == 0 (opposite Decision): agree=6/40
 Coverage (all 40 programs, first 3000 each): 61532/120000 instructions in the cartridge (51%); in the cartridge: 76 distinct mnemonics, DAA 130 times, distinct cartridge addresses per program: min 76, median 136, max 405.
+Opcode coverage (same 40 programs, cartridge code only, measured after the run): 241/244 documented
+opcodes executed, each at least 18 times. Never executed: 76 (HLT), C7 (RST 0), DB (IN), the three
+this generator excludes on purpose; ref8080.py selftest runs all 244, including those three.

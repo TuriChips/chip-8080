@@ -49,6 +49,7 @@ the spec's rules: ANA's OR-of-bit-3 AC, the DCR AC *Decision* and DAA keeping CY
 caught by 26, 34 and 3 programs of 40, see `notes.txt`). Generator: preamble at 0040 behind a JMP,
 RST vectors hold RET, 32 cartridge return addresses seeded on the stack, register pairs mostly point
 into the cartridge, the cartridge ends with a JMP back into the code, and no undocumented/IN/HLT/RST 0
-byte anywhere. **Known weakness** (`notes.txt`): a median of 136 distinct cartridge addresses per
+byte anywhere. **241 of 244** documented opcodes execute as cartridge code (≥ 18 times each); the
+missing three are the excluded HLT, RST 0 and IN, which the selftest covers. **Known weakness** (`notes.txt`): a median of 136 distinct cartridge addresses per
 program, and 49% of traced instructions are NOP slides after wild jumps. Earlier runs in
 `logs/acc3-*` are superseded.
