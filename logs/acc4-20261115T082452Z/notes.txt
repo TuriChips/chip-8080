@@ -1,0 +1,8 @@
+Model mutants (not committed), seeds 1-10, 10 x 2000, generator of this commit:
+  ANA AC = AND of bit 3 (not OR): agree=8/10
+  DAA CY = carry-out only (drops CY_in): agree=10/10
+  DCR AC = low nibble == 0 (opposite Decision): agree=4/10
+Coverage (seeds 100-104, first 3000 each): 9120/15000 instructions in the cartridge, 37 distinct mnemonics
+  DAA CY mutant at the evidence scale (seeds 100-139, 40 x 3000): agree=38/40, so caught by 2 programs
+Known weakness: 39% of traced instructions are a NOP slide through unmapped space after a wild jump
+(RET/PCHL with a random value). Biasing those back into the cartridge is the next generator change.
