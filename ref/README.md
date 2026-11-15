@@ -1,6 +1,6 @@
 # ref/: reference model for the 8080 (owner: Beru)
 
-`ref8080.py`: the 8080 at **instruction level**, written from `docs/spec.md` §3 and §6 only.
+`ref8080.py`: the 8080 at **instruction level** (memory map and I/O through callbacks, default 64 KiB RAM), written from `docs/spec.md` §3 and §6 only.
 `CPU.step()` runs one instruction (or an interrupt acknowledge) and returns the state count (§6.1)
 and the machine cycles it performed (§6.2 notation: F4/F5, R, W, SR, SW, IN, OUT, I3, HLTA, INTA,
 with addresses). The pin-level model (§4) will be built on those cycles once §4 is signed off.

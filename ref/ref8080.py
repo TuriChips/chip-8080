@@ -29,9 +29,13 @@ class Undocumented(Exception):
 
 
 class CPU:
-    def __init__(self, mem=b"", inp=None, out=None):
+    def __init__(self, mem=b"", inp=None, out=None, read=None, write=None):
+        """read(addr) -> byte and write(addr, v) model a system's memory map (default: 64 KiB RAM in
+        self.mem). inp(port) / out(port, v) are the I/O ports."""
         self.mem = bytearray(65536)
         self.mem[:len(mem)] = mem
+        self.read = read or (lambda addr: self.mem[addr])
+        self.write = write or self.mem.__setitem__
         self.inp = inp or (lambda port: 0)
         self.out = out or (lambda port, v: None)
         self.r = [0] * 8                           # B C D E H L (unused) A ; index 6 unused
@@ -82,12 +86,12 @@ class CPU:
     def rd(self, addr, kind="R"):
         addr &= 0xFFFF
         self.cycles.append((kind, addr))
-        return self.mem[addr]
+        return self.read(addr)
 
     def wr(self, addr, v, kind="W"):
         addr &= 0xFFFF
         self.cycles.append((kind, addr))
-        self.mem[addr] = v & 0xFF
+        self.write(addr, v & 0xFF)
 
     def imm8(self):
         v = self.rd(self.pc)
@@ -194,7 +198,7 @@ class CPU:
         if self.halted:
             return 0, self.cycles
         inhibited = self.int_inhibit               # set by an EI before this instruction
-        op = self.mem[self.pc]
+        op = self.read(self.pc)
         if op in UNDOCUMENTED:
             raise Undocumented(f"undocumented opcode {op:02X} at {self.pc:04X} (spec §6: not tested)")
         states = self._exec(op)
@@ -204,7 +208,7 @@ class CPU:
 
     def _fetch(self, five=False):
         self.cycles.append(("F5" if five else "F4", self.pc))
-        op = self.mem[self.pc]
+        op = self.read(self.pc)
         self.pc = (self.pc + 1) & 0xFFFF
         return op
 
@@ -481,6 +485,19 @@ def selftest():
     c = CPU(bytes([0xFB, 0x76])); c.sp = 0x100
     c.step(); c.step(); check("halted", c.halted, True)
     c.request_interrupt(1); c.step(); check("INT leaves halt", (c.pc, c.halted, c.mem[0xFE]), (0x08, False, 0x02))
+    # memory-map callbacks: ROM 0000-1FFF read-only, RAM F000-F3FF, unmapped reads FF
+    rom = bytes([0x31, 0x00, 0xF4, 0x3E, 0x5A, 0x32, 0x00, 0xF0, 0x32, 0x00, 0x10, 0x3A, 0x00, 0x10,
+                 0x47, 0x3A, 0x00, 0xF0, 0xF5])
+    ram = bytearray(0x400)
+    def rd_map(a): return rom[a] if a < len(rom) else (0 if a < 0x2000 else (ram[a - 0xF000] if 0xF000 <= a < 0xF400 else 0xFF))
+    def wr_map(a, v):
+        if 0xF000 <= a < 0xF400: ram[a - 0xF000] = v
+    c = CPU(read=rd_map, write=wr_map)
+    for _ in range(8): c.step()
+    check("map: ROM write ignored, ROM read back", c.r[0], rom[0x1000] if 0x1000 < len(rom) else 0)
+    check("map: RAM write and read", (c.a, ram[0]), (0x5A, 0x5A))
+    check("map: PUSH PSW into RAM", (c.sp, ram[0x3FF], ram[0x3FE]), (0xF3FE, 0x5A, c.flags()))
+
     # §6.2 cycle lists, spot checks
     c = CPU(bytes([0xCD, 0x10, 0x00])); c.sp = 0x100
     check("CALL cycles", [k for k, _ in c.step()[1]], ["F5", "R", "R", "SW", "SW"])
