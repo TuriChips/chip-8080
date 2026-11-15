@@ -276,10 +276,17 @@ Known quirks to pin down exactly (each needs a source):
 - `tests/random/coverage.md` (Beru) lists what C8 exercised, with counts (every opcode, every §4 cycle type, every condition code taken and not taken, wait/hold/interrupt at every legal state) and an empty Gaps section, with the excluded bytes (§6, undocumented) and their reason listed.
 - No-X/Z and no-bus-conflict checks run on every test, with a deliberate mutant that proves they can fail.
 
-## 9. Acceptance tests (software not written by this team), candidates
-1. **8080 instruction exercisers** that are widely used to validate 8080 emulators (e.g. the "8080 Instruction Exerciser" family and CPU test programs that run under a minimal CP/M BDOS stub). The licence and provenance of each must be checked before use. Same rule as Busicom: fetched at test time, never committed (rule 9).
-2. **Example programs from the 8080 User's Manual**, typed in, with expected results from the manual's text.
-3. **Instruction-level comparison against an independent existing 8080 emulator** (Beru chooses, like MAME for the 4004).
+## 9. Acceptance tests (software not written by this team)
+Licences checked 2026-11-15 (chip-8080#1). Same rule as the 4004's Busicom test: third-party programs are **fetched at test time and never committed** (rule 9), even when their licence would allow it, and the release credits their authors.
+
+1. **8080PRE and 8080EXM**, the 8080 instruction-set exercisers. They are Frank D. Cringle's Z80 exerciser (zexlax, © 1994) modified for the 8080 by Ian Bartholomew (2009). **Licence: GNU GPL, version 2 or later**, read from the source header ("Copyright (C) 1994 Frank D. Cringle … GNU General Public License … either version 2 of the License, or (at your option) any later version"; "Modified to exercise an 8080 by Ian Bartholomew, February 2009").
+   - 8080PRE is the short preliminary test. Run it first, since it stops at the first broken basic instruction.
+   - 8080EXM exercises every instruction against expected CRCs of the flags and results. **Use the "M" variant**, whose CRCs are for an Intel 8080. The widely mirrored `8080EX1` has CRCs for the Soviet KR580VM80A clone, so a correct Intel-compatible design would fail some of its lines. The fetch script must pin the exact file (URL + sha256) and record where the expected CRCs came from.
+   - They run under CP/M. `i8080_system` provides a minimal BDOS stub, our own code, in the testbench: the program loads at 0100h, `CALL 5` with C = 2 (print char in E) and C = 9 (print `$`-terminated string at DE) prints to the log, and a jump to 0000h ends the run. Pass = the program's own "ERROR" lines are absent and its final OK message is printed.
+   - **Run length:** the full 8080EXM is on the order of 10⁹ instructions. It must run on Verilator (not Icarus), and a CI run may take the whole exerciser only nightly. Per-push CI runs 8080PRE plus a named subset. The release needs one full 8080EXM pass with its log.
+2. **Excluded for licence reasons:** TST8080 (Microcosm Associates, the "Kelly Smith test") and CPUTEST (SuperSoft Associates, © 1981). No licence or permission found, so they're treated as copyrighted. Reopen only with explicit terms.
+3. **Example programs from the 8080 User's Manual** (1975), typed in from the page images, with expected results from the manual's text where it gives them, otherwise from independent arithmetic, as for the 4004's acceptance test 2.
+4. **Instruction-level comparison against an independent existing 8080 emulator.** Beru chooses it (MAME's i8080 core, BSD-3-Clause, is the first candidate, as for the 4004), and records the choice and licence in `ref/README.md`.
 
 ## 10. Datasheet check
 Source read: Intel *8080 Microcomputer Systems User's Manual*, September 1975 (98-153B, scan with text layer), read 2026-11-14 by Igris. Page numbers are the manual's printed numbers.
