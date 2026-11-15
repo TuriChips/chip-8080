@@ -1,0 +1,6 @@
+c8: seed=100 programs=50 states=20000 mismatching_programs=0
+PASS
+
+real	0m29.703s
+user	0m29.276s
+sys	0m0.211s
