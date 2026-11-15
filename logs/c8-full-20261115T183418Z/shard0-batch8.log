@@ -1,0 +1,4 @@
+coverage: 148521 wait states (TW), 1237 interrupt acknowledges (INTA), 101637 states with HLDA = 1, 231 halts (HLTA), 228 wake-ups by INT (INTA 2B), 3660 held states taken from halt
+stopped early (self-modified code reached an undocumented byte, §6): 4 programs, after [2012, 3814, 4006, 4451] states
+c8: seed=104000 stim=1 programs=500 states=6000 mismatching_programs=0
+PASS
