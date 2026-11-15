@@ -99,7 +99,18 @@ def model_states(mem, nst, inputs=None, vec=7):
     else:
         pm = P.PinModel(c)
     g = pm.states()
-    return [next(g) for _ in range(nst)]
+    out = []
+    try:
+        for _ in range(nst):
+            out.append(next(g))
+    except R.Undocumented:
+        # random code wrote a byte the spec leaves undefined (§6) into its own code region and then
+        # reached it: compare only up to there (counted as "stopped", not as a pass or a mismatch)
+        STOPPED.append(len(out))
+    return out
+
+
+STOPPED = []
 
 
 def recorded_inputs(pdir):
@@ -142,7 +153,7 @@ def compare(pdir, want):
                 return f"state {i} ({w.state}): {name} rtl={g[k]} model={wf[k]}  | rtl {' '.join(g[:10])} | model {' '.join(wf)}"
         if g[10] != "0":
             return f"state {i} ({w.state}): bus_conflict = {g[10]}"
-    if len(got) < len(want) - 2:
+    if len(got) < len(want) - 2 and len(want) >= 1:
         return f"rtl dumped {len(got)} states, model {len(want)}"
     return None
 
@@ -154,7 +165,8 @@ def main():
     ap.add_argument("--seed", type=int, default=1)
     ap.add_argument("--rtl", default=os.path.join(ROOT, "rtl"))
     ap.add_argument("--out", default=os.path.join(ROOT, "build", "c8"))
-    ap.add_argument("--stim", type=int, default=1, help="1: random READY/INT per the §7 rule (default); 0: none")
+    ap.add_argument("--stim", type=int, default=1, help="1: random READY/INT/HOLD per the §7 rule (default); 0: none")
+    ap.add_argument("--hold", type=int, default=1, help="0: leave HOLD out of the stimulus")
     a = ap.parse_args()
     progs = []
     for p in range(a.nprog):
@@ -167,7 +179,8 @@ def main():
     vvp = f"{a.out}/c8.vvp"
     subprocess.run(["iverilog", "-g2012", "-o", vvp, *rtl, os.path.join(ROOT, "tests/random/c8/tb.sv")], check=True)
     sim = subprocess.run(["vvp", "-n", vvp, f"+dir={a.out}", f"+nprog={a.nprog}", f"+nst={a.nst}",
-                          f"+stim={a.stim}", f"+seed={a.seed}", f"+vec={1 + a.seed % 7}"],
+                          f"+stim={a.stim}", f"+seed={a.seed}", f"+vec={1 + a.seed % 7}",
+                          f"+hold={a.hold}"],
                          capture_output=True, text=True)
     if "DONE c8 tb" not in sim.stdout or "ERROR" in sim.stdout:
         print(sim.stdout[-2000:], sim.stderr[-2000:]); print("FAIL: simulator problems"); return 1
@@ -185,6 +198,8 @@ def main():
             f = l.split(); tw += f[7] == "1" and f[1] == "1"; ints += f[0] == "1" and f[4] in ("23", "2b")
             holds += f[8] == "1"
     print(f"coverage: {tw} wait states (TW), {ints} interrupt acknowledges (INTA), {holds} states with HLDA = 1")
+    if STOPPED:
+        print(f"stopped early (self-modified code reached an undocumented byte, §6): {len(STOPPED)} programs, after {sorted(STOPPED)} states")
     print(f"c8: seed={a.seed} stim={a.stim} programs={a.nprog} states={a.nst} mismatching_programs={bad}")
     print("PASS" if bad == 0 else "FAIL")
     return 1 if bad else 0

@@ -13,7 +13,7 @@ module tb;
     .int_vector(int_vector), .in_port_data(in_port_data), .a(a), .a_oe(a_oe), .d_out(d_out), .d_oe(d_oe), .sync(sync),
     .dbin(dbin), .wr_n(wr_n), .wait_o(wait_o), .hlda(hlda), .inte(inte), .bus(bus), .out_port(out_port),
     .out_strobe(out_strobe), .bus_conflict(bus_conflict), .bdos_char(bdos_char), .bdos_strobe(bdos_strobe), .run_done(run_done));
-  string dir, pdir, pins_line; integer nprog, nst, p, i, fd, stim, seed, vec;
+  string dir, pdir, pins_line; integer nprog, nst, p, i, fd, stim, seed, vec, hold_en;
   initial begin
     if (!$value$plusargs("dir=%s", dir)) $fatal(1, "need +dir=");
     if (!$value$plusargs("nprog=%d", nprog)) $fatal(1, "need +nprog=");
@@ -21,6 +21,7 @@ module tb;
     if (!$value$plusargs("stim=%d", stim)) stim = 0;
     if (!$value$plusargs("seed=%d", seed)) seed = 1;
     if (!$value$plusargs("vec=%d", vec)) vec = 7;
+    if (!$value$plusargs("hold=%d", hold_en)) hold_en = 1;
     int_vector = vec[2:0];
     void'($urandom(seed));
     for (p = 0; p < nprog; p = p + 1) begin
@@ -38,14 +39,14 @@ module tb;
           ready = ($urandom % 100) >= 10;                   // 10%: wait states in this cycle
           if (!int_req) int_req = ($urandom % 100) < 3;     // INT rises in 3% of cycles
           else int_req = ($urandom % 100) >= 30;            // ... and falls in 30%
-          if (!hold) hold = ($urandom % 100) < 4;           // HOLD requested in 4% of cycles
+          if (!hold && hold_en) hold = ($urandom % 100) < 4; // HOLD requested in 4% of cycles
         end else if (stim && wait_o === 1'b1 && a_oe === 1'b1) begin
           ready = ($urandom % 100) >= 50;                   // each TW: 50% another wait
         end
         // §7 (#39): HOLD may also change in any state while hlda = 1 or in TWH (wait_o with buses off)
         if (stim && (hlda === 1'b1 || (wait_o === 1'b1 && a_oe === 1'b0))) begin
           if (hold) hold = ($urandom % 100) >= 30;          // held: released with 30% per state
-          else if (!hlda) hold = ($urandom % 100) < 10;     // halted: a hold starts with 10%
+          else if (!hlda && hold_en) hold = ($urandom % 100) < 10;  // halted: a hold starts with 10%
         end
         #1 $fdisplay(fd, "%s %b %b %b", pins_line, ready, int_req, hold);
         #1 clk = 1; #5 clk = 0;
