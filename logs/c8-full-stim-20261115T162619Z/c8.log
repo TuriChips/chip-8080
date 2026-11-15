@@ -1,0 +1,3 @@
+coverage: 49962 wait states (TW), 61 interrupt acknowledges (INTA), 33108 states with HLDA = 1
+c8: seed=100 stim=1 programs=50 states=20000 mismatching_programs=0
+PASS
