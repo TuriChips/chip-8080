@@ -81,4 +81,6 @@ Spec: docs/spec.md (v1). Status per row: **done** (test written and passing, log
 
 ## Tools
 
+- `tb/tb_prog80.sv` + `tests/run_prog80.sh`: trace testbench on the `i8080` pins (own memory and port model); the trace is every OUT's port and data. Compiles; not yet run against an RTL (no control RTL on main).
+- `tests/model80.py`: expected-result model of the ALU group, DAA, INR/DCR and rotates written from spec §6 only, with a selftest of the spec's worked examples (PASS). `tests/c1/gen_alu.py` + `tests/c1/run_alu.sh` generate and run the 24 ALU programs (8 ops × reg/M/imm × 392 cases). Rows ADD..CMP and ADI..CPI become done when a log says PASS.
 - `tests/asm80.py`: assembler written from §6.1; `tests/asm80_selftest.py` checks that it produces exactly the 244 documented opcode bytes (PASS).
