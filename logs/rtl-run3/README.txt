@@ -1,0 +1,1 @@
+C4 interrupt programs (206 runs: inr 132 incl. EI's delayed effect, noei, di, halt 40) on a local merge of PR #31 (7a07af6), #32 (70b69e6), #35 (703b922). All PASS. Negative controls: without INT_AT, or with another K's expected file, a run FAILs.

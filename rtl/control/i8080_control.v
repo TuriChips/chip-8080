@@ -35,6 +35,7 @@ module i8080_control (
     output wire        dbin,
     output wire        wr_n,
     output wire        inte,
+    output wire        a_hold,         // 3-state write held: show the previous cycle's address (hold-entry row)
     output reg  [4:0]  alu_op,
     output reg         alu_a_we,
     output reg         alu_f_we,
@@ -239,7 +240,11 @@ module i8080_control (
         endcase
     end
 
-    wire pin_hold = held && (held_d || tstate == T1);
+    // Hold row from the state AFTER hlda rises (spec 4); the state where it rises shows its normal row,
+    // except the first held state of a 3-state write, which is the hold-entry row (a_oe = 1, a held, d_oe = 0).
+    wire pin_hold   = held && held_d;
+    wire hold_entry = held && !held_d && (tstate == T1);
+    assign a_hold   = hold_entry;
     wire in_twh   = (tstate == TWH);
     wire idle     = (kind == K_IDLE);
     reg  doe, aoe, dbn, wrn;
@@ -262,6 +267,7 @@ module i8080_control (
             end
             default: ;
         endcase
+        if (hold_entry) begin aoe = 1'b1; doe = 1'b0; dbn = 1'b0; wrn = 1'b1; end
         if (in_twh || pin_hold) begin aoe = 1'b0; doe = 1'b0; dbn = 1'b0; wrn = 1'b1; end
         if (reset || tstate == 3'd0) begin aoe = 1'b0; doe = 1'b0; dbn = 1'b0; wrn = 1'b1; end
     end

@@ -27,6 +27,9 @@ module i8080 (
     wire [3:0] reg_rd_sel, reg_wr_sel, pair_op;
     wire [7:0] alu_b;
     wire [15:0] pc, sp, hl;
+    wire        a_hold;
+    wire [15:0] a_int;
+    reg  [15:0] a_q;
 
     i8080_timing u_timing (
         .clk(clk), .reset(reset), .ready(ready), .hold(hold),
@@ -41,7 +44,7 @@ module i8080 (
         .cyc_states(cyc_states), .cyc_last(cyc_last), .cyc_idle(cyc_idle), .cyc_wr(cyc_wr),
         .halt_req(halt_req), .int_go(int_go),
         .status(status), .addr_sel(addr_sel), .d_out_sel(d_out_sel),
-        .d_oe(d_oe), .a_oe(a_oe), .dbin(dbin), .wr_n(wr_n), .inte(inte),
+        .d_oe(d_oe), .a_oe(a_oe), .dbin(dbin), .wr_n(wr_n), .inte(inte), .a_hold(a_hold),
         .alu_op(alu_op), .alu_a_we(alu_a_we), .alu_f_we(alu_f_we), .alu_cy_load(alu_cy_load),
         .alu_pop_f(alu_pop_f), .alu_src(alu_src),
         .reg_rd_sel(reg_rd_sel), .reg_wr_sel(reg_wr_sel), .reg_we(reg_we),
@@ -69,8 +72,12 @@ module i8080 (
     i8080_regs u_regs (
         .clk(clk), .reset(reset), .rd_sel(reg_rd_sel), .wr_sel(reg_wr_sel), .we(reg_we),
         .wdata(wdata), .rdata(rdata), .pair_op(pair_op), .rp_sel(rp_sel), .carry16(carry16),
-        .addr_sel(addr_sel), .addr(a), .pc(pc), .sp(sp), .hl(hl)
+        .addr_sel(addr_sel), .addr(a_int), .pc(pc), .sp(sp), .hl(hl)
     );
+    // `a` of the previous state, shown in the hold-entry state of a 3-state write (the address has
+    // already moved on by then: SP, PC and WZ change at the end of T3)
+    always @(posedge clk) a_q <= a;
+    assign a = a_hold ? a_q : a_int;
     // pc, sp, hl are debug outputs of regs (blocks.md); unused here.
     wire _unused = &{1'b0, pc, sp, hl};
 endmodule
