@@ -39,7 +39,7 @@ class CPU:
         self.pc = 0
         self.cy = self.p = self.ac = self.z = self.s = 0
         self.inte = 0
-        self.ei_pending = 0                        # EI: INTE = 1 after the next instruction
+        self.int_inhibit = 0                       # EI: no interrupt accepted until the next instruction ends
         self.halted = False
         self.int_req = None                        # RST number requested
         self.cycles = []
@@ -183,7 +183,7 @@ class CPU:
     def step(self):
         """Execute one instruction (or an interrupt acknowledge). Returns (states, cycles)."""
         self.cycles = []
-        if self.int_req is not None and self.inte:
+        if self.int_req is not None and self.inte and not self.int_inhibit:
             n, self.int_req = self.int_req, None
             self.inte = 0                          # INTE reset at T1 of the INTA cycle
             self.halted = False
@@ -193,14 +193,13 @@ class CPU:
             return 11, self.cycles
         if self.halted:
             return 0, self.cycles
-        enable_after = self.ei_pending
-        self.ei_pending = 0
+        inhibited = self.int_inhibit               # set by an EI before this instruction
         op = self.mem[self.pc]
         if op in UNDOCUMENTED:
             raise Undocumented(f"undocumented opcode {op:02X} at {self.pc:04X} (spec §6: not tested)")
         states = self._exec(op)
-        if enable_after:
-            self.inte = 1
+        if inhibited:
+            self.int_inhibit = 0                   # the instruction after EI has completed (ALP p.3-24)
         return states, self.cycles
 
     def _fetch(self, five=False):
@@ -311,8 +310,10 @@ class CPU:
                 return 18
             if d == 5:                                                        # XCHG
                 self._fetch(); de, hl = self.rp(1), self.rp(2); self.set_rp(1, hl); self.set_rp(2, de); return 4
-            if d == 6: self._fetch(); self.inte = 0; self.ei_pending = 0; return 4   # DI
-            if d == 7: self._fetch(); self.ei_pending = 1; return 4                  # EI
+            # EI/DI: the INTE flip-flop (and pin) change at T4 of their own M1 (p.2-18); after EI,
+            # acceptance waits for the end of the next instruction (ALP p.3-24); DI is immediate
+            if d == 6: self._fetch(); self.inte = 0; self.int_inhibit = 0; return 4   # DI
+            if d == 7: self._fetch(); self.inte = 1; self.int_inhibit = 1; return 4   # EI
         if s == 4:                                 # Ccc
             self._fetch(five=True); addr = self.imm16()
             if self.cond(d):
@@ -440,9 +441,13 @@ def selftest():
     st, cyc = c.step(); check("OUT cycles", cyc[-1], ("OUT", 0x0707)); check("OUT", outs, [(7, 0x5A)])
     # EI takes effect after the next instruction (ALP p.3-24); INTA pushes PC, jumps to 8n, clears INTE
     c = CPU(bytes([0xFB, 0x00, 0x00])); c.sp = 0x100; c.request_interrupt(2)
-    c.step(); check("no INT right after EI", (c.pc, c.inte), (1, 0))   # spec text: INTE = 1 after the next instruction
-    c.step()  # the instruction after EI completes, then INTA at the next boundary
+    c.step(); check("EI sets INTE at once", (c.pc, c.inte), (1, 1))          # p.2-18: SET INTE F/F in T4 of EI
+    st, cyc = c.step(); check("no INTA right after EI", (c.pc, cyc[0][0]), (2, "F4"))   # the next instruction runs first
     st, cyc = c.step(); check("INTA", (c.pc, c.inte, c.mem[0xFE], st), (0x10, 0, 0x02, 11))
+    # DI is immediate: EI; DI with an INT pending is never accepted
+    c = CPU(bytes([0xFB, 0xF3, 0x00, 0x00])); c.sp = 0x100; c.request_interrupt(3)
+    for _ in range(4): c.step()
+    check("DI immediate", (c.pc, c.inte), (4, 0))
     # HLT, then leave by interrupt
     c = CPU(bytes([0xFB, 0x76])); c.sp = 0x100
     c.step(); c.step(); check("halted", c.halted, True)

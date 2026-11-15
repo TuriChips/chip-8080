@@ -9,7 +9,7 @@ with addresses). The pin-level model (§4) will be built on those cycles once §
 bytes are rejected (§6); state counts, including conditional taken/not taken; the manual examples
 quoted in §6 (SUB A with A = 3E, SBB 4−2−1, ADI 08 + DAA → 01 with CY = AC = 1); the SBB op = FF
 Decision; DAA keeping CY; ANA's AC rule; ORA clearing CY/AC; CMP; INR/DCR AC and CY; DAD CY only;
-PUSH/POP PSW fixed bits; CALL/RET/RST; XTHL; IN/OUT port on both address halves; the EI delay;
+PUSH/POP PSW fixed bits; CALL/RET/RST; XTHL; IN/OUT port on both address halves; EI setting INTE at once but delaying acceptance by one instruction, DI immediate;
 INTA and leaving HLT by interrupt; §6.2 cycle lists for CALL, DAD and XTHL.
 
 Not yet: the pin-level model (waits for §4 v1), random tests (`tests/random/`), the acceptance-3
