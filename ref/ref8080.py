@@ -9,7 +9,8 @@ its machine cycles per §6.2 so the pin model can be built from them.
   states, cycles = cpu.step()        # one instruction (or one interrupt acknowledge)
   cpu.request_interrupt(n)           # RST n via INTA at the next instruction boundary, if INTE
 
-cycles: list of (kind, address) with kind in F4 F5 R W SR SW IN OUT I3 (§6.2 notation), and
+cycles: list of (kind, address, data) with kind in F4 F5 R W SR SW SW5 IN OUT I3 (§6.2 notation; SW5 =
+XTHL's last stack write with T4, T5), and
 'HLTA' for the halt-acknowledge cycle. IN/OUT addresses are {port, port} (§3).
 
 Usage: ref8080.py selftest
@@ -85,12 +86,13 @@ class CPU:
     # ------------------------------------------------------------ bus helpers (record §6.2 cycles)
     def rd(self, addr, kind="R"):
         addr &= 0xFFFF
-        self.cycles.append((kind, addr))
-        return self.read(addr)
+        v = self.read(addr)
+        self.cycles.append((kind, addr, v))
+        return v
 
     def wr(self, addr, v, kind="W"):
         addr &= 0xFFFF
-        self.cycles.append((kind, addr))
+        self.cycles.append((kind, addr, v & 0xFF))
         self.write(addr, v & 0xFF)
 
     def imm8(self):
@@ -191,7 +193,7 @@ class CPU:
             n, self.int_req = self.int_req, None
             self.inte = 0                          # INTE reset at T1 of the INTA cycle
             self.halted = False
-            self.cycles.append(("INTA", self.pc))   # PC not incremented; RST n supplied by the system
+            self.cycles.append(("INTA", self.pc, 0xC7 | (n << 3)))   # PC not incremented; RST n from the system
             self.push16(self.pc)
             self.pc = 8 * n
             return 11, self.cycles
@@ -207,8 +209,8 @@ class CPU:
         return states, self.cycles
 
     def _fetch(self, five=False):
-        self.cycles.append(("F5" if five else "F4", self.pc))
         op = self.read(self.pc)
+        self.cycles.append(("F5" if five else "F4", self.pc, op))
         self.pc = (self.pc + 1) & 0xFFFF
         return op
 
@@ -217,7 +219,7 @@ class CPU:
         if hi == 1:                                # MOV / HLT
             if op == 0x76:
                 self._fetch()
-                self.cycles.append(("HLTA", self.pc))
+                self.cycles.append(("HLTA", self.pc, None))
                 self.halted = True
                 return 7
             if d != 6 and s != 6:
@@ -245,7 +247,7 @@ class CPU:
                 if d & 1 == 0:                     # LXI
                     self._fetch(); self.set_rp(d >> 1, self.imm16()); return 10
                 self._fetch()                      # DAD
-                self.cycles += [("I3", None), ("I3", None)]
+                self.cycles += [("I3", None, None), ("I3", None, None)]
                 t = self.hl() + self.rp(d >> 1)
                 self.cy = t >> 16; self.set_rp(2, t); return 10
             if s == 3:                             # INX / DCX
@@ -302,14 +304,14 @@ class CPU:
             if d == 0: self._fetch(); self.pc = self.imm16(); return 10       # JMP
             if d == 2:                                                        # OUT
                 self._fetch(); port = self.imm8()
-                self.cycles.append(("OUT", (port << 8) | port)); self.out(port, self.a); return 10
+                self.cycles.append(("OUT", (port << 8) | port, self.a)); self.out(port, self.a); return 10
             if d == 3:                                                        # IN
                 self._fetch(); port = self.imm8()
-                self.cycles.append(("IN", (port << 8) | port)); self.a = self.inp(port) & 0xFF; return 10
+                v = self.inp(port) & 0xFF; self.cycles.append(("IN", (port << 8) | port, v)); self.a = v; return 10
             if d == 4:                                                        # XTHL
                 self._fetch()
                 lo = self.rd(self.sp, "SR"); hi_ = self.rd(self.sp + 1, "SR")
-                self.wr(self.sp + 1, self.r[4], "SW"); self.wr(self.sp, self.r[5], "SW")
+                self.wr(self.sp + 1, self.r[4], "SW"); self.wr(self.sp, self.r[5], "SW5")   # §6.2: last SW with T4, T5
                 self.r[4], self.r[5] = hi_, lo
                 return 18
             if d == 5:                                                        # XCHG
@@ -473,8 +475,8 @@ def selftest():
     # IN/OUT: port on both halves of the address (§3)
     outs = []
     c = CPU(bytes([0xDB, 0x05, 0xD3, 0x07]), inp=lambda p: 0x5A, out=lambda p, v: outs.append((p, v)))
-    st, cyc = c.step(); check("IN cycles", cyc[-1], ("IN", 0x0505)); check("IN value", c.a, 0x5A)
-    st, cyc = c.step(); check("OUT cycles", cyc[-1], ("OUT", 0x0707)); check("OUT", outs, [(7, 0x5A)])
+    st, cyc = c.step(); check("IN cycles", cyc[-1], ("IN", 0x0505, 0x5A)); check("IN value", c.a, 0x5A)
+    st, cyc = c.step(); check("OUT cycles", cyc[-1], ("OUT", 0x0707, 0x5A)); check("OUT", outs, [(7, 0x5A)])
     # EI takes effect after the next instruction (ALP p.3-24); INTA pushes PC, jumps to 8n, clears INTE
     c = CPU(bytes([0xFB, 0x00, 0x00])); c.sp = 0x100; c.request_interrupt(2)
     c.step(); check("EI sets INTE at once", (c.pc, c.inte), (1, 1))          # p.2-18: SET INTE F/F in T4 of EI
@@ -503,11 +505,11 @@ def selftest():
 
     # §6.2 cycle lists, spot checks
     c = CPU(bytes([0xCD, 0x10, 0x00])); c.sp = 0x100
-    check("CALL cycles", [k for k, _ in c.step()[1]], ["F5", "R", "R", "SW", "SW"])
+    check("CALL cycles", [k for k, *_ in c.step()[1]], ["F5", "R", "R", "SW", "SW"])
     c = CPU(bytes([0x09]))
-    check("DAD cycles", [k for k, _ in c.step()[1]], ["F4", "I3", "I3"])
+    check("DAD cycles", [k for k, *_ in c.step()[1]], ["F4", "I3", "I3"])
     c = CPU(bytes([0xE3])); c.sp = 0x100
-    check("XTHL cycles", [k for k, _ in c.step()[1]], ["F4", "SR", "SR", "SW", "SW"])
+    check("XTHL cycles", [k for k, *_ in c.step()[1]], ["F4", "SR", "SR", "SW", "SW5"])
 
     if fails:
         for f in fails:

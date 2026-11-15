@@ -16,6 +16,24 @@ INTA and leaving HLT by interrupt; §6.2 cycle lists for CALL, DAD and XTHL.
 Not yet: the pin-level model (waits for §4 v1), random tests (`tests/random/`), the acceptance-4
 emulator choice.
 
+## Pin level: `pins8080.py` (spec v1 §4, §5)
+`PinModel(cpu).states()` yields every T state's pins (`sync a_oe a d_oe d_out dbin wr_n wait_o
+hlda inte`, with None where §4 says "not compared"), built from the instruction model's §6.2 cycle
+list: every cycle type with its status byte, T4/T5 with the data bus not compared, DAD's two bus-idle
+cycles (§6.2 Decision), XTHL's 5-state last stack write, the INTE pin changing at T4 of EI/DI and
+reset at T1 of INTA, HLT → halt acknowledge → TWH, leaving halt by interrupt (status 2B), and the §5
+reset pins. `python3 ref/pins8080.py selftest` checks, for **every documented opcode** (conditionals
+both ways), that the states generated from §6.2 add up to p.4-15's count, plus the pins state by state
+for NOP, MVI M, PUSH, POP, OUT, IN, DAD, EI, DI, HLT and an interrupt out of halt.
+READY wait states: `PinModel(cpu, ready=f)` with READY sampled in T2 and each TW (§4/§7), TW pins
+per read/write type, not in I3/HLTA/T4/T5. HOLD/HLDA: `hold=f`, with the §4 hold rules as refined by
+chip-8080#25/#39 (recognised in T2 or the TW where READY is high; the state where HLDA rises shows its
+normal row with HLDA = 1 (T3 for reads, T4 for XTHL's SW5) or the hold-entry row (3-state writes);
+Hold rows from the next state, T4/T5 included; release sampled at the closing edge of each held
+state, with unfinished T4/T5 resuming their normal rows; not in DAD's idle cycles; from halt and back).
+INT: `int_req=f, int_vector=f`, sampled in the last state of each instruction and in each halt state,
+gated by INTE and EI's delay, ignored while HLDA = 1; the latch is re-decided at every sample.
+
 ## Acceptance test 4 (spec §9 numbering): independent emulator
 Renamed from "acceptance test 3" after spec v1 (#5); log folders were renamed to `logs/acc4-*`, and
 the files inside keep their original names and contents (they print `acc3:`), since they are evidence. (feasibility checked 2026-11-15)
