@@ -257,7 +257,7 @@ Known quirks to pin down exactly (each needs a source):
 
 **Input stimulus rule** (*Decision*, the same idea as the 4004's TEST rule): tests change `ready`, `hold` and `int_req` only on the clock edge that **starts** a T1 or TW state, never mid-state. The exact sampling edges (READY at the end of T2/TW, HOLD at the end of T2 or in halt, INT at the end of the last state of each instruction and only if INTE = 1 at that edge) are [check] and get pinned in §4 with page references. The stimulus rule makes any edge within the state equivalent for a correct design.
 
-## 8. Behaviours to test (draft)
+## 8. Behaviours to test
 | ID | Behaviour |
 |----|-----------|
 | C1 | Every opcode: registers, memory and all five flags exactly per §6 |
@@ -267,7 +267,12 @@ Known quirks to pin down exactly (each needs a source):
 | C5 | DAA and AC in every case |
 | C6 | Reset |
 | C7 | No X/Z on any output; no bus conflict |
-| C8 | Random programs vs Beru's reference model on every pin and state |
+| C8 | Random programs vs Beru's reference model on every pin and state: at least **10,000 programs × 1,000 instructions** (same scale as the 4004's C9), every program starting with the §5 preamble, plus mid-run resets, wait states, holds and interrupts per the §7 stimulus rule, and a variant on the synthesized gate-level netlist |
+
+**What "covered" means, from day one** (Beru's 4004 lesson):
+- `tests/coverage.md` (Titus) maps **every row of §6.1 and every C-row above** to a named test and the log it passed in. The release needs every row done, none partial.
+- `tests/random/coverage.md` (Beru) lists what C8 exercised, with counts (every opcode, every §4 cycle type, every condition code taken and not taken, wait/hold/interrupt at every legal state) and an empty Gaps section, with the excluded bytes (§6, undocumented) and their reason listed.
+- No-X/Z and no-bus-conflict checks run on every test, with a deliberate mutant that proves they can fail.
 
 ## 9. Acceptance tests (software not written by this team), candidates
 1. **8080 instruction exercisers** that are widely used to validate 8080 emulators (e.g. the "8080 Instruction Exerciser" family and CPU test programs that run under a minimal CP/M BDOS stub). The licence and provenance of each must be checked before use. Same rule as Busicom: fetched at test time, never committed (rule 9).
