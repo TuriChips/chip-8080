@@ -71,7 +71,7 @@ Spec: docs/spec.md (v1). Status per row: **done** (test written and passing, log
 | ID | Behaviour | Test | Status |
 |---|---|---|---|
 | C1 | Every opcode: registers, memory and all five flags exactly per §6 | (the rows above) | todo |
-| C2 | Pin timing per §4 for every machine-cycle type, incl. the status byte at SYNC | | todo |
+| C2 | Pin timing per §4 for every machine-cycle type, incl. the status byte at SYNC | `tests/c2/gen_pins80.py` (2 seeded programs, ~12,600 states each: fetch with 4 and 5 states, memory/stack read and write incl. XTHL's 5-state write, input, output, DAD's idle cycles, taken and not-taken Jcc/Ccc/Rcc) + `tb/tb_pins80.sv`; not yet run (no RTL). Wait states, hold, halt, interrupt-acknowledge cycles (types 8-10): C3/C4 | partial |
 | C3 | READY / wait states, HOLD / HLDA at every legal point | | todo |
 | C4 | Interrupts: EI after the next instruction, RST via INTA, INT while halted | | todo |
 | C5 | DAA and AC in every case | | todo |
@@ -84,6 +84,8 @@ Spec: docs/spec.md (v1). Status per row: **done** (test written and passing, log
 - chip-8080#26: the spec's DAA text gives a wrong decimal sum for A = FA..FF (step 1 carries out of bit 7). The DAA test skips those 6 values until decided; DAA stays **partial** until then.
 
 ## Tools
+
+- `tests/mach80.py`: machine model giving each instruction's machine cycles (spec §6.2) and effects; its selftest checks 27 state counts against §6.1 (PASS). `tests/c2/gen_pins80.py` + `tb/tb_pins80.sv` + `tests/run_pins80.sh`: expected pins per clock state from §4's table.
 
 - `tb/tb_prog80.sv` + `tests/run_prog80.sh`: trace testbench on the `i8080` pins (own memory and port model); the trace is every OUT's port and data. Compiles; not yet run against an RTL (no control RTL on main).
 - `tests/model80.py`: expected-result model of the ALU group, DAA, INR/DCR and rotates written from spec §6 only, with a selftest of the spec's worked examples (PASS). `tests/c1/gen_alu.py`, `gen_misc.py` + `tests/c1/run_gen.sh` generate and run 24 ALU programs (8 ops × reg/M/imm × 392 cases), DAA (1000 cases), INR/DCR B and M (1024 cases each) and RLC/RRC/RAL/RAR (1024 each); `gen_xfer.py`: 3 seeded random programs (~2200 trace entries each) over MOV, MVI, LXI, LDA, STA, LHLD, SHLD, LDAX, STAX, XCHG, SPHL, XTHL, PUSH/POP (incl. PSW), DAD, INX, DCX, CMA, STC, CMC, IN, OUT with the whole state written out every 16 instructions; `gen_branch.py`: JMP, PCHL, CALL/RET (SP checked), Jcc/Ccc/Rcc for all 8 conditions × all 16 S/Z/P/CY combinations (taken and not), RST 1-7 (pushed return address checked) and RST 0. Rows ADD..CMP and ADI..CPI become done when a log says PASS.
