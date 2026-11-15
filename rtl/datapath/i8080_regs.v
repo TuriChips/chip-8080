@@ -123,6 +123,7 @@ module i8080_regs (
                 4'd10: begin {r_d, r_e} <= hl; {r_h, r_l} <= de; end
                 4'd11: {r_h, r_l} <= wz;
                 4'd12: begin {r_h, r_l} <= dad_sum[15:0]; carry16 <= dad_sum[16]; end
+                4'd13: begin r_pc <= {wdata, r_z}; r_w <= wdata; end   // JMP, taken Jcc, RET, taken Rcc: high byte arrives on wdata at T3 (chip-8080#37)
                 default: ;
             endcase
         end
