@@ -149,8 +149,10 @@ class PinModel:
             _, pins = self.instruction_states()
             # the instruction's last state: the last one before any trailing hold states (for HLT,
             # its first TWH, which is a halt state)
+            # the hold-entry state and Hold states after the last cycle come after the instruction (§4),
+            # so INT is sampled in the state before them
             k = len(pins) - 1
-            while k > 0 and pins[k].state == "HOLD" and pins[k - 1].state in ("HOLD", "HOLDE", "T3", "T4", "T5"):
+            while k > 0 and pins[k].state in ("HOLD", "HOLDE") and pins[k - 1].state in ("HOLD", "HOLDE", "T3", "T4", "T5"):
                 k -= 1
             self.sample_int(n0 + k, pins[k])
             yield from pins
@@ -331,6 +333,16 @@ def selftest():
     c = R.CPU(bytes([0x00, 0xFB, 0x00, 0x00, 0x00])); c.sp = 0x8000
     g = PinModel(c, int_req=lambda n: 1 if n < 4 else 0).states()
     check("no stale INT", [x.d_out for x in [next(g) for _ in range(20)] if x.state == "T1"], [0xA2] * 5)
+    # INT at the end of an instruction whose last cycle is a 3-state write followed by a hold-entry
+    # state: sampled in the write's T3 (hlda 0), accepted; INTA runs after the hold, INTE drops at its T1
+    c = R.CPU(bytes([0xFB, 0x77, 0x00])); c.sp = 0x8000; c.set_rp(2, 0x4000)   # EI; MOV M,A
+    pm = PinModel(c, int_req=lambda n: 1 if n >= 4 else 0, hold=lambda n: 1 if 9 <= n < 12 else 0)
+    g = pm.states()
+    p = [next(g) for _ in range(14)]
+    check("INT before hold-entry: states", [x.state for x in p[4:]],
+          ["T1", "T2", "T3", "T4", "T1", "T2", "T3", "HOLDE", "HOLD", "T1"])
+    check("INTE kept through the hold, cleared at INTA T1", [x.inte for x in p[11:14]], [1, 1, 0])
+    check("INTA after the hold", p[13].d_out, 0x23)
     # INT is ignored while held: EI; NOP with HOLD across the NOP's end and INT high only then
     c = R.CPU(bytes([0xFB, 0x00, 0x00, 0x00])); c.sp = 0x8000
     pm = PinModel(c, hold=lambda n: 1 if 5 <= n < 9 else 0, int_req=lambda n: 1 if 6 <= n < 9 else 0)
