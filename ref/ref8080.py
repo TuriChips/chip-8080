@@ -424,6 +424,9 @@ def selftest():
     # DAA: 93 + 08 -> 9B -> A1 -> 01, CY = AC = 1 (ALP example in §6)
     c, _ = run([0x3E, 0x93, 0xC6, 0x08, 0x27], 3)
     check("ADI then DAA", (c.a, c.cy, c.ac), (0x01, 1, 1))
+    # DAA: step 1's carry out of bit 7 sets CY (spec #27 Decision): 60 + 99 + 1 (ADC) -> FA -> 60, CY 1
+    c, _ = run([0x3E, 0x60, 0x37, 0xCE, 0x99, 0x27], 4)
+    check("DAA after 60+99+1", (c.a, c.cy), (0x60, 1))
     # DAA keeps an incoming CY (spec Decision)
     def daa_cy(c): c.a = 0x12; c.cy = 1
     c, _ = run([0x27], 1, daa_cy)

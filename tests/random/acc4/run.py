@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Acceptance test 3 for the 8080 (spec §9): random programs on an independent emulator, MAME's
+"""Acceptance test 4 for the 8080 (spec §9): random programs on an independent emulator, MAME's
 8080 core (i8085.cpp, BSD-3-Clause), compared with ref/ref8080.py before every instruction on
 pc, A, flags (S Z AC P CY), BC, DE, HL, SP. Owner: Beru. Details: ref/README.md.
 
 MAME runs its ROM-less "intel02" machine with OUR program as the cartridge (0000-1FFF). The model
 gets the same memory map: cartridge read-only, RAM F000-F3FF (not mirrored), unmapped reads 00,
-unmapped writes dropped (all measured in MAME). Get MAME first: tests/random/acc3/fetch_mame.sh.
-Usage: tests/random/acc3/run.py [NPROG] [NINSTR] [SEED0]   (env MAME_DIR, default build/mame)
+unmapped writes dropped (all measured in MAME). Get MAME first: tests/random/acc4/fetch_mame.sh.
+Usage: tests/random/acc4/run.py [NPROG] [NINSTR] [SEED0]   (env MAME_DIR, default build/mame)
 """
 import os, random, re, subprocess, sys
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
@@ -160,7 +160,7 @@ def main():
     nprog = int(sys.argv[1]) if len(sys.argv) > 1 else 5
     n = int(sys.argv[2]) if len(sys.argv) > 2 else 2000
     seed0 = int(sys.argv[3]) if len(sys.argv) > 3 else 1
-    work = os.path.join(ROOT, "build", "acc3")
+    work = os.path.join(ROOT, "build", "acc4")
     bad = 0
     for p in range(nprog):
         prog = gen(random.Random(seed0 + p))
@@ -181,7 +181,7 @@ def main():
                       f"  mame  {fmt(got)}\n  model {fmt(want)}")
         else:
             print(f"ok seed {seed0 + p}: {n} instructions")
-    print(f"acc3: seed0={seed0} programs={nprog} instructions={n} agree={nprog - bad}")
+    print(f"acc4: seed0={seed0} programs={nprog} instructions={n} agree={nprog - bad}")
     print("PASS" if bad == 0 else "FAIL")
     return 1 if bad else 0
 

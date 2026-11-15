@@ -13,10 +13,12 @@ Decision; DAA keeping CY; ANA's AC rule; ORA clearing CY/AC; CMP; INR/DCR AC and
 PUSH/POP PSW fixed bits; CALL/RET/RST; XTHL; IN/OUT port on both address halves; EI setting INTE at once but delaying acceptance by one instruction, DI immediate;
 INTA and leaving HLT by interrupt; §6.2 cycle lists for CALL, DAD and XTHL.
 
-Not yet: the pin-level model (waits for §4 v1), random tests (`tests/random/`), the acceptance-3
+Not yet: the pin-level model (waits for §4 v1), random tests (`tests/random/`), the acceptance-4
 emulator choice.
 
-## Acceptance test 3: independent emulator (feasibility checked 2026-11-15)
+## Acceptance test 4 (spec §9 numbering): independent emulator
+Renamed from "acceptance test 3" after spec v1 (#5); log folders were renamed to `logs/acc4-*`, and
+the files inside keep their original names and contents (they print `acc3:`), since they are evidence. (feasibility checked 2026-11-15)
 **Candidate: MAME's 8080 core** (`src/devices/cpu/i8085/i8085.cpp`, BSD-3-Clause, Juergen Buchmueller
 and hap; it implements the 8080, 8080A and 8085). MAME is fetched at test time with the 4004's
 `fetch_mame.sh` method (Ubuntu `mame` 0.264, no root) and never committed (rule 9).
@@ -43,8 +45,8 @@ The preamble's `LXI SP` points into RAM (e.g. F400). `ref8080.CPU` will take mem
 callbacks for that. Flags are compared on S, Z, AC, P, CY only (MAME's internal F doesn't keep
 bit 1 = 1).
 
-**Runner:** `tests/random/acc3/run.py` (MAME from `tests/random/acc3/fetch_mame.sh`). Evidence
-`logs/acc3-20261115T093724Z/`: 40 programs × 3,000 instructions, **all agree**. MAME independently agrees with three of
+**Runner:** `tests/random/acc4/run.py` (MAME from `tests/random/acc4/fetch_mame.sh`). Evidence
+`logs/acc4-20261115T093724Z/`: 40 programs × 3,000 instructions, **all agree**. MAME independently agrees with three of
 the spec's rules: ANA's OR-of-bit-3 AC, the DCR AC *Decision* and DAA keeping CY (mutants of each
 caught by 26, 34 and 3 programs of 40, see `notes.txt`). Generator: preamble at 0040 behind a JMP,
 RST vectors hold RET, 32 cartridge return addresses seeded on the stack, register pairs mostly point
@@ -52,4 +54,4 @@ into the cartridge, the cartridge ends with a JMP back into the code, and no und
 byte anywhere. **241 of 244** documented opcodes execute as cartridge code (≥ 18 times each); the
 missing three are the excluded HLT, RST 0 and IN, which the selftest covers. **Known weakness** (`notes.txt`): a median of 136 distinct cartridge addresses per
 program, and 49% of traced instructions are NOP slides after wild jumps. Earlier runs in
-`logs/acc3-*` are superseded.
+`logs/acc4-*` are superseded.

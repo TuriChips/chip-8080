@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Beru's random tests for the 8080, run by the toolchain's `make all` (run_tests.sh).
 #   1. ref/ref8080.py selftest (spec §6 rules; all 244 opcodes' state counts vs User's Manual p.4-15)
-#   2. Acceptance test 3: model vs MAME's 8080 core on the intel02 machine, 5 programs x 2,000
-#      instructions. SKIP (not PASS) when MAME isn't fetched (tests/random/acc3/fetch_mame.sh; CI caches it).
+#   2. Acceptance test 4: model vs MAME's 8080 core on the intel02 machine, 5 programs x 2,000
+#      instructions. SKIP (not PASS) when MAME isn't fetched (tests/random/acc4/fetch_mame.sh; CI caches it).
 #   C8 (RTL vs model, every pin) is added here once the RTL exists.
 # Usage: tests/random/run.sh   Logs: $RUN_DIR/random-*.log (default logs/<timestamp>/)
 set -u
@@ -20,8 +20,8 @@ step() { # name log cmd...
 step ref-selftest "$run/random-ref-selftest.log" python3 -I ref/ref8080.py selftest
 MAME_DIR="${MAME_DIR:-build/mame}"
 if [ -x "$MAME_DIR/root/usr/games/mame" ]; then
-  step acc3 "$run/random-acc3.log" env MAME_DIR="$MAME_DIR" python3 -I tests/random/acc3/run.py 5 2000 100
+  step acc4 "$run/random-acc4.log" env MAME_DIR="$MAME_DIR" python3 -I tests/random/acc4/run.py 5 2000 100
 else
-  echo "SKIP acc3 (no MAME at $MAME_DIR; run tests/random/acc3/fetch_mame.sh)"
+  echo "SKIP acc4 (no MAME at $MAME_DIR; run tests/random/acc4/fetch_mame.sh)"
 fi
 exit $ok
