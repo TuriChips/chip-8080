@@ -12,3 +12,12 @@ $(error toolchain mismatch: Makefile pins $(TOOLCHAIN_REF) but $(TC) is a differ
 endif
 endif
 include $(TC)/chip.mk
+
+# Nightly: the full 8080EXM on Verilator (too long for every PR, spec section 9).
+# Contract: tests/acc1/run_full.sh (Homer) fetches the pinned exerciser, runs it, writes
+# logs/nightly/8080exm.log and exits 0 only on a full pass. Until it exists this is a no-op.
+.PHONY: nightly
+nightly:
+	@mkdir -p logs/nightly
+	@if [ -x tests/acc1/run_full.sh ]; then tests/acc1/run_full.sh 2>&1 | tee logs/nightly/run.log; exit $${PIPESTATUS[0]}; \
+	else echo "nightly: tests/acc1/run_full.sh not there yet (Homer), nothing run" | tee logs/nightly/run.log; fi
