@@ -1,0 +1,4 @@
+WARNING: tb/tb_prog80.sv:27: $readmemh(/tmp/titus-8080/mini/c.exp): Not enough words in the file for the requested range [0:65535].
+FAIL trace[1]: expected port 02 data 02, got port 01 data 01 (clock 261197)
+FAIL: trace=2 expected=2 errors=1
+tb/tb_prog80.sv:63: $finish called at 2612010000 (1ps)

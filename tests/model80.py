@@ -39,10 +39,10 @@ def dcr(r, f):                      # r + FF; AC = carry out of bit 3 of r[3:0] 
     v = (r - 1) & 255; s, z, p = szp(v)
     return v, mkf(s, z, 1 if (r & 15) + 15 > 15 else 0, p, cy_of(f))
 
-def daa(a, f, carry1=False):
-    """Spec 6 DAA, literally: step 1 adds 6 to A when low nibble > 9 or AC; step 2 adds 0x60 when the high nibble
-    (after step 1) > 9 or CY. carry1=True is the variant where step 1's carry out of bit 7 also sets CY, so step 2 fires
-    (needed for A in FA..FF; see the open question for Igris in chip-8080: the literal text gives a wrong decimal sum there)."""
+def daa(a, f, carry1=True):
+    """Spec 6 DAA (with chip-8080#27): step 1 adds 6 to A when low nibble > 9 or AC, and its carry out of bit 7 sets CY (carry1=True,
+    the default); step 2 adds 0x60 when the high nibble (after step 1) > 9 or CY. carry1=False is the earlier literal text, which gives a
+    wrong decimal sum for A = FA..FF (chip-8080#26); kept only so the selftest can show the difference."""
     cy = f & 1; ac = (f >> 4) & 1
     if (a & 15) > 9 or ac:
         t = a + 6; ac2 = 1 if (a & 15) + 6 > 15 else 0; a = t & 255
@@ -80,8 +80,8 @@ if __name__ == '__main__':
             for cin in (0, 1):
                 r, f = alu('ADC', bcd(x), bcd(y), cin); a0 = r
                 exp, expcy = bcd((x + y + cin) % 100), 1 if x + y + cin >= 100 else 0
-                r1, f1 = daa(r, f, carry1=True); assert r1 == exp and (f1 & 1) == expcy, f"DAA(carry1) BCD {x}+{y}+{cin}"
-                r0, f0 = daa(r, f)
+                r1, f1 = daa(r, f); assert r1 == exp and (f1 & 1) == expcy, f"DAA(carry1) BCD {x}+{y}+{cin}"
+                r0, f0 = daa(r, f, carry1=False)
                 if (r0, f0 & 1) != (exp, expcy): lit_bad.add(a0)
     assert lit_bad and all(v >= 0xFA for v in lit_bad), sorted(lit_bad)
     print("note: literal DAA differs from decimal sum for binary sums", ", ".join("%02X" % v for v in sorted(lit_bad)))

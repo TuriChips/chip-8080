@@ -2,7 +2,7 @@
 """Generates C1/C5 tests for DAA, INR/DCR (register B and M) and the four rotates into build/gen/c1 (or argv[1]).
 A and F are set exactly with LXI D / PUSH D / POP PSW (spec 6.1: POP PSW loads A and S Z AC P CY), so every flag
 input is controlled, then the instruction runs and A/B/M and F are written out (OUT 1, OUT 2).
-  daa:      A 00..F9 x (CY, AC) in {0,1}^2 (1000 cases). A = FA..FF are skipped until chip-8080#26 is decided.
+  daa:      A 00..FF x (CY, AC) in {0,1}^2 (1024 cases), with the DAA rule of chip-8080#27 (step 1's carry out of bit 7 sets CY).
   inr_b, inr_m, dcr_b, dcr_m: value 00..FF x CY in {0,1} x flag pattern in {S/Z/AC/P all 0, all 1} (1024 cases)
   rlc, rrc, ral, rar: A 00..FF x CY x flag pattern (1024 cases); only CY may change.
 Expected values come from tests/model80.py (written from spec 6)."""
@@ -20,7 +20,7 @@ def write(name, title, asm, exp):
     open(f"{d}/{name}.asm", "w").write("\n".join(asm) + "\n"); open(f"{d}/{name}.exp", "w").write("\n".join("%04X" % e for e in exp) + "\n")
 # DAA
 asm, exp = [], []
-for a in range(0xFA):
+for a in range(256):
     for cy in (0, 1):
         for ac in (0, 1):
             f = 0x02 | cy | ac << 4

@@ -1,38 +1,38 @@
 # Coverage: spec behaviour -> test (Intel 8080)
 
-Spec: docs/spec.md (v1). Status per row: **done** (test written and passing, log cited), **partial**, **todo**. Nothing is "passing" until a log in `logs/` says so. The RTL is not on main yet, so nothing has run against a design.
+Spec: docs/spec.md (v1). Status per row: **done** (test written and passing, log cited), **partial**, **todo**. Nothing is "passing" until a log in `logs/` says so. The RTL is not on main yet; the rows marked done ran on a local merge of PRs #31 and #32 (logs/rtl-run1/README.txt gives the heads).
 
 ## §6.1 opcode rows (C1, C5 for DAA)
 
 | Encoding | Mnemonic | Test | Status |
 |---|---|---|---|
-| 01 DDD SSS (D, S ≠ 110) | MOV r1,r2 | | todo |
-| 01 110 SSS (S ≠ 110) | MOV M,r | | todo |
-| 01 DDD 110 (D ≠ 110) | MOV r,M | | todo |
+| 01 DDD SSS (D, S ≠ 110) | MOV r1,r2 | tests/c1 `xfer_s1..3 (random)` | done (PASS, logs/rtl-run1) |
+| 01 110 SSS (S ≠ 110) | MOV M,r | tests/c1 `xfer_s1..3 (random)` | done (PASS, logs/rtl-run1) |
+| 01 DDD 110 (D ≠ 110) | MOV r,M | tests/c1 `xfer_s1..3 (random)` | done (PASS, logs/rtl-run1) |
 | 01 110 110 | HLT | | todo |
-| 00 DDD 110 b2 | MVI r / MVI M | | todo |
-| 00 DDD 100 | INR r / INR M | | todo |
-| 00 DDD 101 | DCR r / DCR M | | todo |
-| 10 000 SSS | ADD | | todo |
-| 10 001 SSS | ADC | | todo |
-| 10 010 SSS | SUB | | todo |
-| 10 011 SSS | SBB | | todo |
-| 10 100 SSS | ANA | | todo |
-| 10 101 SSS | XRA | | todo |
-| 10 110 SSS | ORA | | todo |
-| 10 111 SSS | CMP | | todo |
-| 11 000 110 b2 | ADI | | todo |
-| 11 001 110 b2 | ACI | | todo |
-| 11 010 110 b2 | SUI | | todo |
-| 11 011 110 b2 | SBI | | todo |
-| 11 100 110 b2 | ANI | | todo |
-| 11 101 110 b2 | XRI | | todo |
-| 11 110 110 b2 | ORI | | todo |
-| 11 111 110 b2 | CPI | | todo |
-| 00 000 111 | RLC | | todo |
-| 00 001 111 | RRC | | todo |
-| 00 010 111 | RAL | | todo |
-| 00 011 111 | RAR | | todo |
+| 00 DDD 110 b2 | MVI r / MVI M | tests/c1 `xfer_s1..3 (random)` | done (PASS, logs/rtl-run1) |
+| 00 DDD 100 | INR r / INR M | tests/c1 `inr_b, inr_m` | done (PASS, logs/rtl-run1) |
+| 00 DDD 101 | DCR r / DCR M | tests/c1 `dcr_b, dcr_m` | done (PASS, logs/rtl-run1) |
+| 10 000 SSS | ADD | tests/c1 `alu_add_reg/mem` | done (PASS, logs/rtl-run1) |
+| 10 001 SSS | ADC | tests/c1 `alu_adc_reg/mem` | done (PASS, logs/rtl-run1) |
+| 10 010 SSS | SUB | tests/c1 `alu_sub_reg/mem` | done (PASS, logs/rtl-run1) |
+| 10 011 SSS | SBB | tests/c1 `alu_sbb_reg/mem` | done (PASS, logs/rtl-run1) |
+| 10 100 SSS | ANA | tests/c1 `alu_ana_reg/mem` | done (PASS, logs/rtl-run1) |
+| 10 101 SSS | XRA | tests/c1 `alu_xra_reg/mem` | done (PASS, logs/rtl-run1) |
+| 10 110 SSS | ORA | tests/c1 `alu_ora_reg/mem` | done (PASS, logs/rtl-run1) |
+| 10 111 SSS | CMP | tests/c1 `alu_cmp_reg/mem` | done (PASS, logs/rtl-run1) |
+| 11 000 110 b2 | ADI | tests/c1 `alu_add_imm` | done (PASS, logs/rtl-run1) |
+| 11 001 110 b2 | ACI | tests/c1 `alu_adc_imm` | done (PASS, logs/rtl-run1) |
+| 11 010 110 b2 | SUI | tests/c1 `alu_sub_imm` | done (PASS, logs/rtl-run1) |
+| 11 011 110 b2 | SBI | tests/c1 `alu_sbb_imm` | done (PASS, logs/rtl-run1) |
+| 11 100 110 b2 | ANI | tests/c1 `alu_ana_imm` | done (PASS, logs/rtl-run1) |
+| 11 101 110 b2 | XRI | tests/c1 `alu_xra_imm` | done (PASS, logs/rtl-run1) |
+| 11 110 110 b2 | ORI | tests/c1 `alu_ora_imm` | done (PASS, logs/rtl-run1) |
+| 11 111 110 b2 | CPI | tests/c1 `alu_cmp_imm` | done (PASS, logs/rtl-run1) |
+| 00 000 111 | RLC | tests/c1 `rlc (rotate test)` | done (PASS, logs/rtl-run1) |
+| 00 001 111 | RRC | tests/c1 `rrc (rotate test)` | done (PASS, logs/rtl-run1) |
+| 00 010 111 | RAL | tests/c1 `ral (rotate test)` | done (PASS, logs/rtl-run1) |
+| 00 011 111 | RAR | tests/c1 `rar (rotate test)` | done (PASS, logs/rtl-run1) |
 | 11 000 011 b2 b3 | JMP | | todo |
 | 11 CCC 010 b2 b3 | Jcc | | todo |
 | 11 001 101 b2 b3 | CALL | | todo |
@@ -41,27 +41,27 @@ Spec: docs/spec.md (v1). Status per row: **done** (test written and passing, log
 | 11 CCC 000 | Rcc | | todo |
 | 11 NNN 111 | RST n | | todo |
 | 11 101 001 | PCHL | | todo |
-| 11 011 011 b2 | IN | | todo |
-| 11 010 011 b2 | OUT | | todo |
-| 00 RP0 001 b2 b3 | LXI rp | | todo |
-| 11 RP0 101 | PUSH rp / PUSH PSW | | todo |
-| 11 RP0 001 | POP rp / POP PSW | | todo |
-| 00 110 010 b2 b3 | STA | | todo |
-| 00 111 010 b2 b3 | LDA | | todo |
-| 11 101 011 | XCHG | | todo |
-| 11 100 011 | XTHL | | todo |
-| 11 111 001 | SPHL | | todo |
-| 00 RP1 001 | DAD rp | | todo |
-| 00 0X0 010 (X: 0 = B, 1 = D) | STAX B / STAX D | | todo |
-| 00 0X1 010 | LDAX B / LDAX D | | todo |
-| 00 RP0 011 | INX rp | | todo |
-| 00 RP1 011 | DCX rp | | todo |
-| 00 101 111 | CMA | | todo |
-| 00 110 111 | STC | | todo |
-| 00 111 111 | CMC | | todo |
-| 00 100 111 | DAA | | todo |
-| 00 100 010 b2 b3 | SHLD | | todo |
-| 00 101 010 b2 b3 | LHLD | | todo |
+| 11 011 011 b2 | IN | tests/c1 `xfer_s1..3 (random)` | done (PASS, logs/rtl-run1) |
+| 11 010 011 b2 | OUT | tests/c1 `xfer_s1..3 (random)` | done (PASS, logs/rtl-run1) |
+| 00 RP0 001 b2 b3 | LXI rp | tests/c1 `xfer_s1..3 (random)` | done (PASS, logs/rtl-run1) |
+| 11 RP0 101 | PUSH rp / PUSH PSW | tests/c1 `xfer_s1..3 (random)` | done (PASS, logs/rtl-run1) |
+| 11 RP0 001 | POP rp / POP PSW | tests/c1 `xfer_s1..3 (random)` | done (PASS, logs/rtl-run1) |
+| 00 110 010 b2 b3 | STA | tests/c1 `xfer_s1..3 (random)` | done (PASS, logs/rtl-run1) |
+| 00 111 010 b2 b3 | LDA | tests/c1 `xfer_s1..3 (random)` | done (PASS, logs/rtl-run1) |
+| 11 101 011 | XCHG | tests/c1 `xfer_s1..3 (random)` | done (PASS, logs/rtl-run1) |
+| 11 100 011 | XTHL | tests/c1 `xfer_s1..3 (random)` | done (PASS, logs/rtl-run1) |
+| 11 111 001 | SPHL | tests/c1 `xfer_s1..3 (random)` | done (PASS, logs/rtl-run1) |
+| 00 RP1 001 | DAD rp | tests/c1 `xfer_s1..3 (random)` | done (PASS, logs/rtl-run1) |
+| 00 0X0 010 (X: 0 = B, 1 = D) | STAX B / STAX D | tests/c1 `xfer_s1..3 (random)` | done (PASS, logs/rtl-run1) |
+| 00 0X1 010 | LDAX B / LDAX D | tests/c1 `xfer_s1..3 (random)` | done (PASS, logs/rtl-run1) |
+| 00 RP0 011 | INX rp | tests/c1 `xfer_s1..3 (random)` | done (PASS, logs/rtl-run1) |
+| 00 RP1 011 | DCX rp | tests/c1 `xfer_s1..3 (random)` | done (PASS, logs/rtl-run1) |
+| 00 101 111 | CMA | tests/c1 `xfer_s1..3 (random)` | done (PASS, logs/rtl-run1) |
+| 00 110 111 | STC | tests/c1 `xfer_s1..3 (random)` | done (PASS, logs/rtl-run1) |
+| 00 111 111 | CMC | tests/c1 `xfer_s1..3 (random)` | done (PASS, logs/rtl-run1) |
+| 00 100 111 | DAA | tests/c1 `daa` | done (PASS, logs/rtl-run1) |
+| 00 100 010 b2 b3 | SHLD | tests/c1 `xfer_s1..3 (random)` | done (PASS, logs/rtl-run1) |
+| 00 101 010 b2 b3 | LHLD | tests/c1 `xfer_s1..3 (random)` | done (PASS, logs/rtl-run1) |
 | 11 111 011 | EI | | todo |
 | 11 110 011 | DI | | todo |
 | 00 000 000 | NOP | | todo |
@@ -81,7 +81,7 @@ Spec: docs/spec.md (v1). Status per row: **done** (test written and passing, log
 
 ## Open spec question
 
-- chip-8080#26: the spec's DAA text gives a wrong decimal sum for A = FA..FF (step 1 carries out of bit 7). The DAA test skips those 6 values until decided; DAA stays **partial** until then.
+- chip-8080#26 (resolved by #27): the spec's DAA text gives a wrong decimal sum for A = FA..FF (step 1 carries out of bit 7). Decided in #27 (step 1's carry out of bit 7 sets CY); the DAA test now covers all 256 values of A.
 
 ## Cross-check against Beru's reference models (once ref/ is on main)
 
