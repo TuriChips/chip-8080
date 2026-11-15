@@ -204,8 +204,10 @@ class CPU:
         if op in UNDOCUMENTED:
             raise Undocumented(f"undocumented opcode {op:02X} at {self.pc:04X} (spec §6: not tested)")
         states = self._exec(op)
-        if inhibited:
-            self.int_inhibit = 0                   # the instruction after EI has completed (ALP p.3-24)
+        if inhibited and op != 0xFB:
+            self.int_inhibit = 0                   # the instruction after EI has completed (ALP p.3-24);
+                                                   # an EI right after EI re-arms the delay, so EI; EI
+                                                   # accepts only after the instruction after the 2nd EI
         return states, self.cycles
 
     def _fetch(self, five=False):
@@ -482,6 +484,12 @@ def selftest():
     c.step(); check("EI sets INTE at once", (c.pc, c.inte), (1, 1))          # p.2-18: SET INTE F/F in T4 of EI
     st, cyc = c.step(); check("no INTA right after EI", (c.pc, cyc[0][0]), (2, "F4"))   # the next instruction runs first
     st, cyc = c.step(); check("INTA", (c.pc, c.inte, c.mem[0xFE], st), (0x10, 0, 0x02, 11))
+    # EI; EI; NOP; NOP with INT pending: not after the 2nd EI (that would put an interrupt between it
+    # and its next instruction), but after the NOP (found by C8, chip-8080#2)
+    c = CPU(bytes([0xFB, 0xFB, 0x00, 0x00])); c.sp = 0x100; c.request_interrupt(4)
+    c.step(); c.step()
+    st, cyc = c.step(); check("EI;EI: NOP runs before INTA", cyc[0][0], "F4")
+    st, cyc = c.step(); check("EI;EI: INTA after the NOP", (cyc[0][0], c.pc), ("INTA", 0x20))
     # DI is immediate: EI; DI with an INT pending is never accepted
     c = CPU(bytes([0xFB, 0xF3, 0x00, 0x00])); c.sp = 0x100; c.request_interrupt(3)
     for _ in range(4): c.step()
