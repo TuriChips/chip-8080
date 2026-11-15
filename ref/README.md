@@ -25,7 +25,8 @@ reset at T1 of INTA, HLT → halt acknowledge → TWH, leaving halt by interrupt
 reset pins. `python3 ref/pins8080.py selftest` checks, for **every documented opcode** (conditionals
 both ways), that the states generated from §6.2 add up to p.4-15's count, plus the pins state by state
 for NOP, MVI M, PUSH, POP, OUT, IN, DAD, EI, DI, HLT and an interrupt out of halt.
-Not yet: READY wait states (TW), HOLD, and INT arriving mid-instruction with the stimulus rule (§7).
+READY wait states: `PinModel(cpu, ready=f)` with READY sampled in T2 and each TW (§4/§7), TW pins
+per read/write type, not in I3/HLTA/T4/T5. Not yet: HOLD/HLDA, and INT arriving mid-instruction.
 
 ## Acceptance test 4 (spec §9 numbering): independent emulator
 Renamed from "acceptance test 3" after spec v1 (#5); log folders were renamed to `logs/acc4-*`, and

@@ -11,8 +11,8 @@ Cycle shapes come from the instruction model's §6.2 cycle list:
   OUT     output       T1-T3, status 10                 I3  DAD bus-idle, 3 states (§6.2 Decision)
   INTA    interrupt acknowledge (RST n), T1-T5, status 23 (2B while halted)
   HLTA    halt acknowledge T1, T2, then TWH until left, status 8A
-First version: READY = 1 and HOLD = 0 always (no TW, no hold states). Interrupts are honoured at
-instruction boundaries and from the halt state.
+READY wait states (TW) via a ready(n) callback; HOLD not yet (no hold states). Interrupts are
+honoured at instruction boundaries and from the halt state.
 
 Usage: pins8080.py selftest
 """
@@ -32,8 +32,9 @@ LENGTH = {"F4": 4, "F5": 5, "R": 3, "W": 3, "SR": 3, "SW": 3, "IN": 3, "OUT": 3,
 RESET_PINS = Pins("RESET", 0, 0, None, 0, None, 0, 1, 0, 0, 0)    # §5, while reset = 1
 
 
-def cycle_pins(kind, addr, data, inte):
-    """Pins for each state of one machine cycle (§4 'Pins per state' table)."""
+def cycle_pins(kind, addr, data, inte, waits=0):
+    """Pins for each state of one machine cycle (§4 'Pins per state' table). `waits` TW states go
+    after T2 (READY low when sampled in T2 and in each TW); not in I3, HLTA, or T4/T5."""
     out = []
     if kind == "I3":                                  # DAD M2/M3: bus idle, a not compared
         return [Pins(f"T{i + 1}", 0, 1, None, 0, None, 0, 1, 0, 0, inte) for i in range(3)]
@@ -44,9 +45,11 @@ def cycle_pins(kind, addr, data, inte):
         return out                                    # TWH states follow while halted
     if kind in READS:
         out.append(Pins("T2", 0, 1, addr, 0, None, 1, 1, 0, 0, inte))
+        out += [Pins("TW", 0, 1, addr, 0, None, 1, 1, 1, 0, inte)] * waits
         out.append(Pins("T3", 0, 1, addr, 0, None, 1, 1, 0, 0, inte))
-    else:                                             # write: data from T2, WR low in T3
+    else:                                             # write: data from T2, WR low in TW and T3
         out.append(Pins("T2", 0, 1, addr, 1, data, 0, 1, 0, 0, inte))
+        out += [Pins("TW", 0, 1, addr, 1, data, 0, 0, 1, 0, inte)] * waits
         out.append(Pins("T3", 0, 1, addr, 1, data, 0, 0, 0, 0, inte))
     for t in range(3, LENGTH[kind]):                  # T4, T5: a held, data bus not compared
         out.append(Pins(f"T{t + 1}", 0, 1, addr, None, None, 0, 1, 0, 0, inte))
@@ -57,8 +60,12 @@ TWH = lambda inte: Pins("TWH", 0, 0, None, 0, None, 0, 1, 1, 0, inte)
 
 
 class PinModel:
-    def __init__(self, cpu):
+    def __init__(self, cpu, ready=None):
+        """ready(n) -> 0/1: READY during absolute state n (default always 1). Per the §7 stimulus
+        rule a test changes it only on the edge starting a T1 or TW."""
         self.cpu = cpu
+        self.ready = ready or (lambda n: 1)
+        self.n = 0                                    # absolute state counter
 
     def instruction_states(self):
         """Run one instruction (or INTA); return its states. EI/DI change INTE at T4 of their M1;
@@ -72,17 +79,24 @@ class PinModel:
         for i, (kind, addr, data) in enumerate(cycles):
             if kind == "INTA" and was_halted:
                 kind = "INTA_H"
+            # READY: sampled in T2 (state n + 1 of this cycle) and in each TW after it
+            waits = 0
+            if kind not in ("I3", "HLTA"):
+                t2 = self.n + len(out) + 1
+                while not self.ready(t2 + waits):
+                    waits += 1
             if kind in ("INTA", "INTA_H"):
-                pins = cycle_pins(kind, addr, data, 0)    # INTE reset at T1 of the INTA cycle
+                pins = cycle_pins(kind, addr, data, 0, waits)    # INTE reset at T1 of the INTA cycle
             elif i == 0:
-                pins = cycle_pins(kind, addr, data, inte_before)
-                # the M1 of EI/DI: the flip-flop changes at T4
-                pins = [p._replace(inte=inte_after) if k >= 3 else p for k, p in enumerate(pins)]
+                pins = cycle_pins(kind, addr, data, inte_before, waits)
+                # the M1 of EI/DI: the flip-flop changes at T4 (state index 3 + waits)
+                pins = [p._replace(inte=inte_after) if k >= 3 + waits else p for k, p in enumerate(pins)]
             else:
-                pins = cycle_pins(kind, addr, data, inte_after)
+                pins = cycle_pins(kind, addr, data, inte_after, waits)
             out += pins
         if cycles and cycles[-1][0] == "HLTA":
             out.append(TWH(inte_after))                   # HLT's 7th state is the first TWH
+        self.n += len(out)
         return states_count, out
 
     def states(self):
@@ -90,6 +104,7 @@ class PinModel:
         c = self.cpu
         while True:
             if c.halted and not (c.int_req is not None and c.inte):
+                self.n += 1
                 yield TWH(c.inte)
                 continue
             _, pins = self.instruction_states()
@@ -172,6 +187,26 @@ def selftest():
     check("INTA_H length", [x.state for x in p[:5]], ["T1", "T2", "T3", "T4", "T5"])
     check("RST pushes return address", (p[6].d_out, p[9].d_out), (0x00, 0x02))
     check("after RST pc", c.pc, 0x0008)
+    # READY: MVI M,5A with READY low during states 5-6 (T2 of the R cycle and one TW) and 8-9
+    # (T2 of the W cycle and one TW): 2 TW each; read TW keeps dbin, write TW keeps data with WR low
+    lows = {5, 6, 8 + 2, 9 + 2}
+    c = R.CPU(bytes([0x36, 0x5A])); c.set_rp(2, 0x1234)
+    pm = PinModel(c, ready=lambda n: 0 if n in lows else 1)
+    n, p = pm.instruction_states()
+    check("READY state names", [x.state for x in p],
+          ["T1", "T2", "T3", "T4", "T1", "T2", "TW", "TW", "T3", "T1", "T2", "TW", "TW", "T3"])
+    check("read TW pins", p[6], Pins("TW", 0, 1, 0x0001, 0, None, 1, 1, 1, 0, 0))
+    check("write TW pins", p[11], Pins("TW", 0, 1, 0x1234, 1, 0x5A, 0, 0, 1, 0, 0))
+    check("READY stretches, count = 10 + 4", len(p), n + 4)
+    # READY low only in T1 (not sampled there) or in T4 (internal): no wait state
+    c = R.CPU(bytes([0x00, 0x00]))
+    pm = PinModel(c, ready=lambda n: 0 if n in (0, 3) else 1)
+    check("READY not sampled in T1/T4", [x.state for x in pm.instruction_states()[1]], ["T1", "T2", "T3", "T4"])
+    # DAD's idle cycles ignore READY
+    c = R.CPU(bytes([0x09]))
+    pm = PinModel(c, ready=lambda n: 0 if n >= 4 else 1)
+    check("READY ignored in I3", [x.state for x in pm.instruction_states()[1]][4:], ["T1", "T2", "T3"] * 2)
+
     # reset pins (§5)
     check("reset pins", RESET_PINS, Pins("RESET", 0, 0, None, 0, None, 0, 1, 0, 0, 0))
 
