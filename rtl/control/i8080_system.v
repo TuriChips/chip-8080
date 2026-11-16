@@ -11,12 +11,15 @@
 //   MEMR (status D7)  RAM byte at `a`
 // Status is latched at SYNC (T1) and used from T2 on. OUT cycles don't write RAM (status D4).
 //
-// CP/M BDOS stub (spec 9), as 8080 code (Beru's suggestion on #31): reads of 0005h..001Ch return the
-// routine below instead of RAM, so `CALL 5` with C = 2 prints E and C = 9 prints the '$'-string at DE,
-// through OUT port 0 (bdos_char / bdos_strobe). It clobbers A, flags and DE, as the real BDOS may.
-//   0005 MOV A,C; CPI 2; JZ 0011; CPI 9; JZ 0015; RET
-//   0011 MOV A,E; OUT 0; RET
-//   0015 LDAX D; CPI '$'; RZ; OUT 0; INX D; JMP 0015
+// CP/M BDOS stub (spec 9), as 8080 code (Beru's suggestion on #31): reads of 0005h-0007h (JMP FE06) and
+// FE06h-FE1Fh return the routine below instead of RAM, so `CALL 5` with C = 2 prints E and C = 9 prints the
+// '$'-string at DE, through OUT port 0 (bdos_char / bdos_strobe). It clobbers A, flags and DE, as the real BDOS may.
+// The routine is at FE06h, not in low memory, so that the word at 0006h (the BDOS address) is a usable stack
+// top for programs that start with `LHLD 6; SPHL` (8080EXM does; chip-8080#67).
+//   0005 JMP FE06
+//   FE06 MOV A,C; CPI 2; JZ FE12; CPI 9; JZ FE16; RET
+//   FE12 MOV A,E; OUT 0; RET
+//   FE16 LDAX D; CPI '$'; RZ; OUT 0; INX D; JMP FE16
 // run_done goes high (and stays) at the first instruction fetch from 0000h after a fetch from 0100h or
 // above, which is how an exerciser ends (spec 9). Nothing in the CPU is touched.
 module i8080_system #(
@@ -75,20 +78,33 @@ module i8080_system #(
         .wr(~wr_n & ~st_out), .wdata(d_out), .rdata(mem_rdata)
     );
 
-    // BDOS stub bytes
-    wire stub_hit = (a >= 16'h0005) && (a <= 16'h001E);
+    // BDOS stub bytes. As in CP/M, 0005h holds JMP BDOS and the word at 0006h is the BDOS address, which
+    // programs read with LHLD 6 to put the stack just below it (8080EXM: `start: lhld 6; sphl`). The routine
+    // sits at FE06h so that word is a sane stack top. Reads only; RAM underneath is untouched.
+    wire stub_lo  = (a >= 16'h0005) && (a <= 16'h0007);
+    wire stub_hi  = (a >= 16'hFE06) && (a <= 16'hFE1F);
+    wire stub_hit = stub_lo || stub_hi;
     reg [7:0] stub_byte;
     always @(*) begin
-        case (a[4:0])
-            5'h05: stub_byte = 8'h79; 5'h06: stub_byte = 8'hFE; 5'h07: stub_byte = 8'h02;
-            5'h08: stub_byte = 8'hCA; 5'h09: stub_byte = 8'h11; 5'h0A: stub_byte = 8'h00;
-            5'h0B: stub_byte = 8'hFE; 5'h0C: stub_byte = 8'h09; 5'h0D: stub_byte = 8'hCA;
-            5'h0E: stub_byte = 8'h15; 5'h0F: stub_byte = 8'h00; 5'h10: stub_byte = 8'hC9;
-            5'h11: stub_byte = 8'h7B; 5'h12: stub_byte = 8'hD3; 5'h13: stub_byte = 8'h00;
-            5'h14: stub_byte = 8'hC9; 5'h15: stub_byte = 8'h1A; 5'h16: stub_byte = 8'hFE;
-            5'h17: stub_byte = 8'h24; 5'h18: stub_byte = 8'hC8; 5'h19: stub_byte = 8'hD3;
-            5'h1A: stub_byte = 8'h00; 5'h1B: stub_byte = 8'h13; 5'h1C: stub_byte = 8'hC3;
-            5'h1D: stub_byte = 8'h15; default: stub_byte = 8'h00;
+        stub_byte = 8'h00;
+        case (a)
+            16'h0005: stub_byte = 8'hC3; 16'h0006: stub_byte = 8'h06; 16'h0007: stub_byte = 8'hFE;
+            16'hFE06: stub_byte = 8'h79;                                    // MOV A,C
+            16'hFE07: stub_byte = 8'hFE; 16'hFE08: stub_byte = 8'h02;       // CPI 2
+            16'hFE09: stub_byte = 8'hCA; 16'hFE0A: stub_byte = 8'h12; 16'hFE0B: stub_byte = 8'hFE;  // JZ FE12
+            16'hFE0C: stub_byte = 8'hFE; 16'hFE0D: stub_byte = 8'h09;       // CPI 9
+            16'hFE0E: stub_byte = 8'hCA; 16'hFE0F: stub_byte = 8'h16; 16'hFE10: stub_byte = 8'hFE;  // JZ FE16
+            16'hFE11: stub_byte = 8'hC9;                                    // RET
+            16'hFE12: stub_byte = 8'h7B;                                    // MOV A,E
+            16'hFE13: stub_byte = 8'hD3; 16'hFE14: stub_byte = 8'h00;       // OUT 0
+            16'hFE15: stub_byte = 8'hC9;                                    // RET
+            16'hFE16: stub_byte = 8'h1A;                                    // LDAX D
+            16'hFE17: stub_byte = 8'hFE; 16'hFE18: stub_byte = 8'h24;       // CPI '$'
+            16'hFE19: stub_byte = 8'hC8;                                    // RZ
+            16'hFE1A: stub_byte = 8'hD3; 16'hFE1B: stub_byte = 8'h00;       // OUT 0
+            16'hFE1C: stub_byte = 8'h13;                                    // INX D
+            16'hFE1D: stub_byte = 8'hC3; 16'hFE1E: stub_byte = 8'h16; 16'hFE1F: stub_byte = 8'hFE;  // JMP FE16
+            default: stub_byte = 8'h00;
         endcase
     end
     wire [7:0] mem_or_stub = stub_hit ? stub_byte : mem_rdata;
