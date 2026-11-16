@@ -298,6 +298,13 @@ Licences checked 2026-11-15 (chip-8080#1). Same rule as the 4004's Busicom test:
    - **Run length:** the full 8080EXM is on the order of 10⁹ instructions. It must run on Verilator (not Icarus), and a CI run may take the whole exerciser only nightly. Per-push CI runs 8080PRE plus a named subset. The release needs one full 8080EXM pass with its log.
 2. **Excluded for licence reasons:** TST8080 (Microcosm Associates, the "Kelly Smith test") and CPUTEST (SuperSoft Associates, © 1981). No licence or permission found, so they're treated as copyrighted. Reopen only with explicit terms.
 3. **Worked example programs from Intel's manuals**, typed in from the page images, with expected results from the manual's text where it gives them, otherwise from independent arithmetic, as for the 4004's acceptance test 2. **Source:** the *8080/8085 Assembly Language Programming Manual* (the "ALP manual" cited in §3 and §6), which has complete worked programs. The User's Manual (98-153B) was the first choice, but its text layer has no complete program with expected results, only I/O address formats and opcode tables (Homer, chip-8080#14). Homer lists the candidate programs with their page numbers on chip-8080#14, and Igris picks the set there. At least 3 programs, covering between them decimal arithmetic (DAA), a subroutine with CALL/RET and the stack, and a loop over memory. Programs that use 8085-only instructions (RIM, SIM) are excluded.
+   - **The set** (chip-8080#14, from the page images):
+     - MADD (p.6-12): expected 1A6AB7, the manual's.
+     - MSUB (p.6-12, the SBB variant): 060B52, our arithmetic.
+     - ADSUB (pp.6-4/6-5): the manual's subroutine and data with our wrapper; 0EH is the manual's, 2DH is ours. This is the CALL/RET/stack case.
+     - Decimal addition and subtraction (pp.6-12 to 6-16): the manual's procedures and printed data. This is the DAA case.
+     - GENAD is **not used** (no printed result).
+     - Every `.expected` file says, per value, whether it is the manual's or ours.
 4. **Instruction-level comparison against an independent existing 8080 emulator.** Beru chooses it (MAME's i8080 core, BSD-3-Clause, is the first candidate, as for the 4004), and records the choice and licence in `ref/README.md`.
 
 ## 10. Datasheet check
