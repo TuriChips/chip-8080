@@ -1,0 +1,24 @@
+# Full 8080EXM on Verilator, nightly on main (and on demand). Log kept as an artifact.
+name: nightly
+on:
+  schedule:
+    - cron: "30 21 * * *"   # 03:00 IST
+  workflow_dispatch:
+jobs:
+  exm:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: main }
+      - uses: actions/checkout@v4
+        with:
+          repository: TuriChips/toolchain
+          ref: v0.9
+          path: .toolchain
+          token: ${{ secrets.TOOLCHAIN_TOKEN || github.token }}
+      - run: sudo apt-get update && sudo apt-get install -y verilator yosys make iverilog python3
+      - run: make nightly TOOLCHAIN_REF=
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with: { name: nightly-logs, path: logs/nightly/, if-no-files-found: warn }
