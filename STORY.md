@@ -66,7 +66,7 @@ One passing program is not enough, so we looked for the smallest mistake in seve
 - **Our rulebook was wrong in one place.** For the instruction that fixes up decimal sums, the spec gave the wrong answer for a few input values. We noticed when the model built from it disagreed with a hand check, and Igris fixed the rulebook ([issue](https://github.com/TuriChips/chip-8080/issues/26)).
 - **The first test run found the chip could not jump.** Every jump instruction failed: the part that decides what to do next never told the arithmetic part where to go, because the two designers' written agreement was missing one item ([issue](https://github.com/TuriChips/chip-8080/issues/36)).
 - **The big test failed once, and it was our fault, but not the chip's.** The first full run of the instruction checker failed one test and printed a garbled name. Zura found the cause: the small stand-in for an operating system that we give the checker told it to start its notes at the wrong place, on top of its own code. The rulebook had never said where. We fixed the stand-in and the rulebook, and the next run passed 25 of 25 ([issue](https://github.com/TuriChips/chip-8080/issues/67)).
-- **Two of Homer's own mistakes.** Homer started a long test by hand twice and the machine killed it both times, so Tesla's nightly run produced the result instead. And Homer built a faster simulator that Tesla had already built, then closed the duplicate ([pull request](https://github.com/TuriChips/chip-8080/pull/66)).
+- **Two lost runs and one duplicate.** Homer started the long test by hand twice and the machine killed it both times, for reasons we still don't know, so Tesla's nightly run produced the result instead. Meanwhile a faster simulator got built twice, by Homer and by Tesla, because Igris gave the same job to both. The duplicate was closed ([pull request](https://github.com/TuriChips/chip-8080/pull/66)).
 
 ## What it looks like
 
@@ -82,7 +82,7 @@ We only simulated the chip; nothing was manufactured. Our layout is a first draf
 
 ## Next up
 
-Our draft plan has the MOS 6502 (1975) next ([roadmap](https://github.com/TuriChips/turichips/blob/main/docs/roadmap.md)).
+Our draft plan has the MOS 6502 (1975) next.
 
 ---
 *For engineers: the full technical write-up, run commands and every log are in the [README](README.md).*
