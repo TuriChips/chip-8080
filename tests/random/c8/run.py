@@ -170,6 +170,9 @@ def main():
     ap.add_argument("--out", default=os.path.join(ROOT, "build", "c8"))
     ap.add_argument("--stim", type=int, default=1, help="1: random READY/INT/HOLD per the §7 rule (default); 0: none")
     ap.add_argument("--hold", type=int, default=1, help="0: leave HOLD out of the stimulus")
+    ap.add_argument("--extra", nargs="*", default=[], help="extra Verilog files (gate-level: PDK cell models)")
+    ap.add_argument("--timeout", type=float, default=None, help="seconds; a simulation still running then is a FAIL")
+    ap.add_argument("--define", nargs="*", default=[], help="iverilog -D macros")
     a = ap.parse_args()
     progs = []
     for p in range(a.nprog):
@@ -180,11 +183,14 @@ def main():
         progs.append(mem)
     rtl = sorted(os.path.join(dp, f) for dp, _, fs in os.walk(a.rtl) for f in fs if f.endswith(".v"))
     vvp = f"{a.out}/c8.vvp"
-    subprocess.run(["iverilog", "-g2012", "-o", vvp, *rtl, os.path.join(ROOT, "tests/random/c8/tb.sv")], check=True)
-    sim = subprocess.run(["vvp", "-n", vvp, f"+dir={a.out}", f"+nprog={a.nprog}", f"+nst={a.nst}",
-                          f"+stim={a.stim}", f"+seed={a.seed}", f"+vec={1 + a.seed % 7}",
-                          f"+hold={a.hold}"],
-                         capture_output=True, text=True)
+    subprocess.run(["iverilog", "-g2012", "-o", vvp, *[f"-D{m}" for m in a.define], *rtl, *a.extra, os.path.join(ROOT, "tests/random/c8/tb.sv")], check=True)
+    try:
+        sim = subprocess.run(["vvp", "-n", vvp, f"+dir={a.out}", f"+nprog={a.nprog}", f"+nst={a.nst}",
+                              f"+stim={a.stim}", f"+seed={a.seed}", f"+vec={1 + a.seed % 7}",
+                              f"+hold={a.hold}"],
+                             capture_output=True, text=True, timeout=a.timeout)
+    except subprocess.TimeoutExpired:
+        print(f"FAIL: simulation still running after {a.timeout:.0f} s (hang)"); return 1
     if "DONE c8 tb" not in sim.stdout or "ERROR" in sim.stdout:
         print(sim.stdout[-2000:], sim.stderr[-2000:]); print("FAIL: simulator problems"); return 1
     bad = 0

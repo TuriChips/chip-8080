@@ -37,7 +37,9 @@ def rollback(records, ram, i, stats):
     """Undo the model's memory writes that the RTL hasn't completed by state i (a write completes at the
     closing edge of its cycle's first WR-low state). Returns True if state i is inside an instruction."""
     rec = next((r for r in reversed(records) if r[0] <= i), None)
-    if not (rec and rec[2] and rec[0] < i < rec[0] + len(rec[2])):
+    # rec[0] == i counts too: RESET raised in an instruction's first state (its T1) abandons it whole,
+    # but the model has already executed it.
+    if not (rec and rec[2] and rec[0] <= i < rec[0] + len(rec[2])):
         return False
     done = []                                       # completion state of each write cycle, in order
     pins = rec[2]
@@ -122,7 +124,7 @@ def compare_with_resets(mem, got, vec, mem_end=None, pdir=None):
                 if bad:
                     return f"state {j}: after RESET, not reset-valued ({' '.join(got[j][:10])}; {bad})", stats
                 j += 1
-            if j - i - 1 < 3:
+            if j - i - 1 < 3 and j < len(got):                # (a run cut off by the end of the dump is fine)
                 return f"state {i}: RESET run shorter than 3 states", stats
             pm.n = j
             g = pm.states()
@@ -146,6 +148,9 @@ def main():
     ap.add_argument("--seed", type=int, default=1)
     ap.add_argument("--rtl", default=os.path.join(run.ROOT, "rtl"))
     ap.add_argument("--out", default=os.path.join(run.ROOT, "build", "c8r"))
+    ap.add_argument("--extra", nargs="*", default=[], help="extra Verilog files (gate-level: PDK cell models)")
+    ap.add_argument("--timeout", type=float, default=None, help="seconds; a simulation still running then is a FAIL")
+    ap.add_argument("--define", nargs="*", default=[], help="iverilog -D macros")
     a = ap.parse_args()
     progs = []
     for p in range(a.nprog):
@@ -156,10 +161,13 @@ def main():
         progs.append(mem)
     rtl = sorted(os.path.join(dp, f) for dp, _, fs in os.walk(a.rtl) for f in fs if f.endswith(".v"))
     vvp = f"{a.out}/c8r.vvp"
-    subprocess.run(["iverilog", "-g2012", "-o", vvp, *rtl, os.path.join(HERE, "tb_resets.sv")], check=True)
+    subprocess.run(["iverilog", "-g2012", "-o", vvp, *[f"-D{m}" for m in a.define], *rtl, *a.extra, os.path.join(HERE, "tb_resets.sv")], check=True)
     vec = 1 + a.seed % 7
-    sim = subprocess.run(["vvp", "-n", vvp, f"+dir={a.out}", f"+nprog={a.nprog}", f"+nst={a.nst}",
-                          "+stim=1", f"+seed={a.seed}", f"+vec={vec}", "+hold=1"], capture_output=True, text=True)
+    try:
+        sim = subprocess.run(["vvp", "-n", vvp, f"+dir={a.out}", f"+nprog={a.nprog}", f"+nst={a.nst}",
+                              "+stim=1", f"+seed={a.seed}", f"+vec={vec}", "+hold=1"], capture_output=True, text=True, timeout=a.timeout)
+    except subprocess.TimeoutExpired:
+        print(f"FAIL: simulation still running after {a.timeout:.0f} s (hang)"); return 1
     if "DONE c8 tb" not in sim.stdout or "ERROR" in sim.stdout:
         print(sim.stdout[-2000:], sim.stderr[-2000:]); print("FAIL: simulator problems"); return 1
     bad = 0; tot = {"resets": 0, "mid_instruction": 0, "rolled_back": 0, "stopped_vector": 0}; stopped = 0
