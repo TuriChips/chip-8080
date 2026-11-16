@@ -1,0 +1,7 @@
+main commit: b25ba61eabb8523263e78539aae3ab3916ee41d4
+madd: PASS printed 1A6AB7, expected 1A6AB7
+msub: PASS printed 060B52, expected 060B52
+adsub: PASS printed 0E2D, expected 0E2D
+dsub: PASS printed 9629000000000000, expected 9629000000000000
+dadd: PASS printed 2179, expected 2179
+ACC3 PASS

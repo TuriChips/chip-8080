@@ -1,0 +1,6 @@
+main commit: 01808dba632ee96dc63e808f1a35c6ba25d87ef8
+8080: 1+2+...+100 = 5050
+
+RUN DONE after 5123 clocks, bus_conflict seen 0 times
+- tests/acc1/tb_cpm.sv:27: Verilog $finish
+DEMO PASS: printed '8080: 1+2+...+100 = 5050'
