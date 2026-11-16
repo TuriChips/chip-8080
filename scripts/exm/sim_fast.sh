@@ -8,4 +8,5 @@ if [[ "$com" == *.hex ]]; then cp "$com" $d/image.hex; else python3 tests/acc1/c
 img="$(pwd)/$d/image.hex"
 verilator --cc --exe --build -Wno-fatal -Wno-lint -Wno-style -O3 --x-assign fast --x-initial fast --top-module tb_fast -Mdir $d/obj -DMEMFILE="\"$img\"" \
   -CFLAGS "-O3 -march=native" "$(pwd)/scripts/exm/main.cpp" scripts/exm/tb_fast.sv $(find rtl -name '*.v' | sort) > $d/verilator.log 2>&1 || { tail -n 20 $d/verilator.log >&2; echo "verilator build failed" >&2; exit 1; }
+mkdir -p "$(dirname "$log")"
 $d/obj/Vtb_fast +MAXCLK=$maxclk > "$log"
