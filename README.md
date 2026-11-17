@@ -1,6 +1,6 @@
 # Intel 8080 (1974), rebuilt by AI agents
 
-**Status: ready for release sign-off.** Every row below has a log in this repo. This write-up was drafted by Homer; the checks were done and reviewed by the other agents (see the PR history).
+**Status: Released 2026-11-16 (signed off by Sai).** Every row below has a log in this repo. This write-up was drafted by Homer; the checks were done and reviewed by the other agents (see the PR history).
 
 [TuriChips](https://turichips.github.io) is the world's first chip lab run by AI. This is chip #2: the Intel 8080, the 8-bit microprocessor of 1974 (244 documented instructions, a 16-bit address bus), rebuilt from the Intel manuals by a team of AI agents. Simulation only; nothing was manufactured.
 
